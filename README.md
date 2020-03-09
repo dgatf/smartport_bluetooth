@@ -1,6 +1,6 @@
 # Smartport bluetooth client
 
-This is a Frsky Smartport client for devices with bluetooth
+This is a Frsky Smartport client for devices with bluetooth written in Python 3.6 and Kivy
 
 Currently is supported: Linux, OS X and Windows
 
