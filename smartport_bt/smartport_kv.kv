@@ -1,0 +1,266 @@
+#:kivy 1.11.1
+        
+<PopupMonitors@Popup>:
+    size_hint: None, None
+    size: '8cm', '3.5cm'
+    title: ''
+    separator_height: 0
+    GridLayout:
+        cols: 1
+        Button:
+            id: rename
+            text: 'Rename'
+            size_hint_y: None
+            height: '1cm'
+            font_size: '0.5cm'
+        Button:
+            id: delete
+            text: 'Delete'
+            size_hint_y: None
+            height: '1cm'
+            font_size: '0.5cm'
+
+<PopupToast@Popup>:
+    title: ''
+    separator_height: 0
+    size_hint: None, None
+    height: '2cm'
+    width: '10cm'
+
+<ButtonList@LongpressButton>:
+    size_hint_y: None
+    height: '1cm'
+    font_size: '0.5cm'
+    long_press_time: 0.3
+
+<ButtonSensor>:
+    markup: True
+    halign: 'center'
+    sensor_name: 'None'
+    sensor_id: 0
+    sensor_data_id: 0
+    sensor_value: 0
+    sensor_index: 0
+    sensor_unit: 'no unit'
+    label: '[size=0.8cm]' + self.sensor_name + '\n[/size][size=1.2cm]' + str(self.sensor_value) + ' ' + self.sensor_unit + '[/size]'
+    text: self.label
+    font_size: '0.8cm'
+
+<MyScreenManager>:
+    ScreenMonitors:
+        id: screen_monitors
+        name: 'screen_monitors'
+    ScreenMonitor:
+        id: screen_monitor
+        name: 'screen_monitor'
+    ScreenEditName:
+        id: screen_edit_name
+        name: 'screen_edit_name'
+    ScreenEditSensor:
+        id: screen_edit_sensor
+        name: 'screen_edit_sensor'
+    ScreenList:
+        id: screen_list
+        name: 'screen_list'
+
+<ScreenMonitors>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    id: image_connection
+                    icon: 'circle-red.png'
+                ActionButton:
+                    text: 'Connect'
+                    on_release: root.list_bluetooth()
+                ActionGroup:
+                    text: 'Menu'
+                    mode: 'spinner'
+                    ActionButton:
+                        text: 'Add'
+                        on_release: root.add_monitor()
+                    #ActionButton:
+                    #    text: 'Settings'
+                    ActionButton:
+                        text: 'Exit'
+                        on_release: app.get_running_app().stop()
+        ScrollView:
+            GridLayout:
+                id: list_config
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+
+<ScreenMonitor>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.show_screen_monitors()
+        GridLayout:
+            cols: 2
+            ButtonSensor:
+                id: sensor1
+                index: 'sensor1'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor2
+                index: 'sensor2'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor3
+                index: 'sensor3'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor4
+                index: 'sensor4'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor5
+                index: 'sensor5'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor6
+                index: 'sensor6'
+                on_long_press: root.show_screen_edit_sensor(self)
+ 
+<ScreenEditName>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Ok'
+                    on_release: root.update_name()
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.cancel_name()
+        GridLayout:
+            cols: 1
+            size_hint: 1, .9
+            Label:
+                height: '1cm'
+                font_size: '0.5cm'
+                size_hint_y: None
+                text_size: self.size
+                text: 'Name'
+            TextInput:
+                id: text_name
+                height: '1cm'
+                font_size: '0.5cm'
+                size_hint_y: None
+                multiline: False
+
+<ScreenEditSensor>:
+    sensor_id: 0
+    sensor_data_id: 0
+    sensor_index: 0
+    sensor_name: ''
+    sensor_unit: ''
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Ok'
+                    on_release: root.update_sensor()
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.show_screen_monitor()
+        GridLayout:
+            cols: 1
+            Label:
+                text: 'Sensor name'
+                height: '1cm'
+                font_size: '0.5cm'
+                text_size: self.size
+                size_hint_y: None
+            Button:
+                height: '1cm'
+                width: '5cm'
+                valign: 'center'
+                font_size: '0.5cm'
+                text_size: self.size
+                size_hint: None, None
+                text: str(root.sensor_name)
+                on_release: root.show_sensor_list()    
+            Label:
+                text: 'Sensor Id'
+                height: '1cm'
+                font_size: '0.5cm'
+                text_size: self.size
+                size_hint_y: None
+            Label:
+                height: '1cm'
+                font_size: '0.5cm'
+                text_size: self.size
+                text: hex(int(root.sensor_id))
+                size_hint_y: None
+            Label:
+                text: 'Sensor frame'
+                text_size: self.size
+                height: '1cm'
+                font_size: '0.5cm'
+                text_size: self.size
+                size_hint_y: None
+            Label:
+                text: 'Sensor frame'
+                height: '1cm'
+                font_size: '0.5cm'
+                text_size: self.size
+                text: hex(int(root.sensor_data_id))
+                size_hint_y: None            
+            
+<ScreenList>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.previous_screen()
+        ScrollView:
+            GridLayout:
+                id: list
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+
