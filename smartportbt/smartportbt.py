@@ -29,7 +29,7 @@ import bluetooth
 import uuid
 import time
 import sys
-Builder.load_file('smartport_kv.kv')
+Builder.load_file('smartportbt_kv.kv')
 
 
 class LongpressButton(Button):
