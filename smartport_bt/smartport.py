@@ -1,4 +1,13 @@
 
+"""
+            Smartport bluetooth client
+                   DanielGeA
+  License https://www.gnu.org/licenses/gpl-3.0.en.html
+
+  A Frsky Smartport client for devices with bluetooth 
+
+"""
+
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
