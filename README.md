@@ -6,9 +6,15 @@ Currently supported: Linux, OS X and Windows
 
 ## Installation
 
-Prerequisites: Python 3 with Kivy and pybluez modules (python3 -m pip install kivy pybluez)
+Prerequisites: Python 3 with Kivy and pybluez modules
 
-Copy smartport_bt folder and execute smartport.py
+Install python modules
+
+*python3 -m pip install kivy pybluez*
+
+Copy folder *smartport_bt* and execute
+
+*python3 smartport.py*
 
 
 <p align="center"><img src="./images/models.png" width="300"><br>

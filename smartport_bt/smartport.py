@@ -410,7 +410,7 @@ def close_toast(obj):
 
 
 sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-smartport_app = SmartportApp(title='Smartport')
+smartport_app = SmartportApp(title='Smartport BT')
 telemetry = {}
 telemetry['sensor_id'] = 0
 bt = {
