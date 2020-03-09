@@ -20,14 +20,14 @@ import bluetooth
 import uuid
 import time
 import sys
-Builder.load_file('smartport_kv.kv') 
+Builder.load_file('smartport_kv.kv')
 
 
 class LongpressButton(Button):
     __events__ = ('on_short_press', 'on_long_press',)
 
     long_press_time = Factory.NumericProperty(1)
-    
+
     def on_state(self, instance, value):
         if value == 'down':
             lpt = self.long_press_time
@@ -40,7 +40,7 @@ class LongpressButton(Button):
 
     def _do_long_press(self, dt):
         self.dispatch('on_long_press')
-        
+
     def on_long_press(self, *largs):
         pass
 
@@ -55,7 +55,7 @@ class ButtonSensor(LongpressButton):
 class ScreenMonitors(Screen):
 
     def add_monitor(self):
-        button = Factory.ButtonList(text = '')
+        button = Factory.ButtonList(text='')
         button.uuid = str(uuid.uuid1())
         button.bind(on_long_press=self.show_popup_monitors)
         button.bind(on_short_press=screen_monitors.show_screen_monitor)
@@ -83,7 +83,7 @@ class ScreenMonitors(Screen):
             pos_y = 0.8
         popup_list.pos_hint = {'x': 0.3, 'y': pos_y}
         popup_list.open()
-        
+
     def show_screen_edit_name(self, obj):
         screen_edit_name.origin = self.popup.origin
         #screen_edit_name.monitor_name = self.popup.origin.text
@@ -165,7 +165,7 @@ class ScreenMonitors(Screen):
 
 
 class ScreenMonitor(Screen):
-    
+
     def show_popup_monitor(self, obj):
         popup_monitor = Factory.Popupmonitor()
         self.popup = popup_monitor
@@ -209,7 +209,7 @@ class ScreenEditName(Screen):
         screen_manager.current = 'screen_monitors'
 
 
-class ScreenEditSensor(Screen):   
+class ScreenEditSensor(Screen):
 
     def show_sensor_list(self):
         for sensor_id in telemetry.keys():
@@ -218,7 +218,8 @@ class ScreenEditSensor(Screen):
                     sensor_data = get_sensor_data(data_id)
                     if sensor_data:
                         for index in sensor_data.keys():
-                            button = Factory.ButtonList(text=sensor_data[index]['name'])
+                            button = Factory.ButtonList(
+                                text=sensor_data[index]['name'])
                             button.sensor_id = sensor_id
                             button.sensor_data_id = data_id
                             button.sensor_index = index
@@ -266,7 +267,7 @@ class MyScreenManager(ScreenManager):
 
 
 class SmartportApp(App):
-                        
+
     def build(self):
         return screen_manager
 
@@ -277,7 +278,8 @@ def read_bluetooth(obj):
         while True:
             c = sock.recv(1)
             if c == 0x7D:
-                data.append((int.from_bytes(sock.recv(1), 'big') ^ 0x20).to_bytes(1, 'big'))
+                data.append((int.from_bytes(sock.recv(1), 'big')
+                             ^ 0x20).to_bytes(1, 'big'))
             else:
                 data.append(c)
     except:
@@ -289,8 +291,10 @@ def read_bluetooth(obj):
                 crc &= 0x00FF
             crc = 0xFF - crc
             if crc == 0:
-                data_id = int.from_bytes(data[2], "big") << 8 | int.from_bytes(data[1], "big")
-                value = int.from_bytes(data[6], "big") << 24 | int.from_bytes(data[5], "big") << 16 | int.from_bytes(data[4], "big") << 8 | int.from_bytes(data[3], "big")
+                data_id = int.from_bytes(
+                    data[2], "big") << 8 | int.from_bytes(data[1], "big")
+                value = int.from_bytes(data[6], "big") << 24 | int.from_bytes(
+                    data[5], "big") << 16 | int.from_bytes(data[4], "big") << 8 | int.from_bytes(data[3], "big")
                 sensor_data = get_sensor_data(data_id)
 
                 if sensor_data:
@@ -299,29 +303,36 @@ def read_bluetooth(obj):
                             telemetry[telemetry['sensor_id']] = {}
                         if data_id not in telemetry[telemetry['sensor_id']]:
                             telemetry[telemetry['sensor_id']][data_id] = {}
-                        telemetry[telemetry['sensor_id']][data_id][key] = (value >> sensor_data[key]['shift']) * sensor_data[key]['mult']
+                        telemetry[telemetry['sensor_id']][data_id][key] = (
+                            value >> sensor_data[key]['shift']) * sensor_data[key]['mult']
                 try:
-                    screen_monitor.ids.sensor1.sensor_value = telemetry[screen_monitor.ids.sensor1.sensor_id][screen_monitor.ids.sensor1.sensor_data_id][screen_monitor.ids.sensor1.sensor_index]
+                    screen_monitor.ids.sensor1.sensor_value = telemetry[screen_monitor.ids.sensor1.sensor_id][
+                        screen_monitor.ids.sensor1.sensor_data_id][screen_monitor.ids.sensor1.sensor_index]
                 except KeyError:
                     pass
                 try:
-                    screen_monitor.ids.sensor2.sensor_value = telemetry[screen_monitor.ids.sensor2.sensor_id][screen_monitor.ids.sensor2.sensor_data_id][screen_monitor.ids.sensor2.sensor_index]
+                    screen_monitor.ids.sensor2.sensor_value = telemetry[screen_monitor.ids.sensor2.sensor_id][
+                        screen_monitor.ids.sensor2.sensor_data_id][screen_monitor.ids.sensor2.sensor_index]
                 except KeyError:
                     pass
                 try:
-                    screen_monitor.ids.sensor3.sensor_value = telemetry[screen_monitor.ids.sensor3.sensor_id][screen_monitor.ids.sensor3.sensor_data_id][screen_monitor.ids.sensor3.sensor_index]
+                    screen_monitor.ids.sensor3.sensor_value = telemetry[screen_monitor.ids.sensor3.sensor_id][
+                        screen_monitor.ids.sensor3.sensor_data_id][screen_monitor.ids.sensor3.sensor_index]
                 except KeyError:
                     pass
                 try:
-                    screen_monitor.ids.sensor4.sensor_value = telemetry[screen_monitor.ids.sensor4.sensor_id][screen_monitor.ids.sensor4.sensor_data_id][screen_monitor.ids.sensor4.sensor_index]
+                    screen_monitor.ids.sensor4.sensor_value = telemetry[screen_monitor.ids.sensor4.sensor_id][
+                        screen_monitor.ids.sensor4.sensor_data_id][screen_monitor.ids.sensor4.sensor_index]
                 except KeyError:
                     pass
                 try:
-                    screen_monitor.ids.sensor5.sensor_value = telemetry[screen_monitor.ids.sensor5.sensor_id][screen_monitor.ids.sensor5.sensor_data_id][screen_monitor.ids.sensor5.sensor_index]
+                    screen_monitor.ids.sensor5.sensor_value = telemetry[screen_monitor.ids.sensor5.sensor_id][
+                        screen_monitor.ids.sensor5.sensor_data_id][screen_monitor.ids.sensor5.sensor_index]
                 except KeyError:
                     pass
                 try:
-                    screen_monitor.ids.sensor6.sensor_value = telemetry[screen_monitor.ids.sensor6.sensor_id][screen_monitor.ids.sensor6.sensor_data_id][screen_monitor.ids.sensor6.sensor_index]
+                    screen_monitor.ids.sensor6.sensor_value = telemetry[screen_monitor.ids.sensor6.sensor_id][
+                        screen_monitor.ids.sensor6.sensor_data_id][screen_monitor.ids.sensor6.sensor_index]
                 except KeyError:
                     pass
 
@@ -329,65 +340,68 @@ def read_bluetooth(obj):
                 if data[0] == 0x7E:
                     telemetry['sensor_id'] = data[1]
 
+
 def get_sensor_data(data_id):
     data = {
-            range(0x0100, 0x010f) : {0: {'name': 'Alt', 'unit': 'm', 'mult': 1, 'shift': 0}},
-            range(0x0110, 0x011f) : {0: {'name': 'Vario', 'unit': 'm/s', 'mult': 1, 'shift': 0.01}},
-            range(0x0200, 0x020f) : {0: {'name': 'Curr', 'unit': 'A', 'mult': 0.1, 'shift': 0}},
-            range(0x0210, 0x021f) : {0: {'name': 'VFAS', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
-            range(0x0300, 0x030f) : {0: {'name': 'Cell', 'unit': 'v', 'mult': 0.02, 'shift': 0}},
-            range(0x0400, 0x040f) : {0: {'name': 'Temp1', 'unit': 'C', 'mult': 1, 'shift': 0}},
-            range(0x0410, 0x041f) : {0: {'name': 'Temp2', 'unit': 'C', 'mult': 1, 'shift': 0}},
-            range(0x0500, 0x050f) : {0: {'name': 'Rpm', 'unit': 'rpm', 'mult': 1, 'shift': 0}},
-            range(0x0600, 0x060f) : {0: {'name': 'Fuel', 'unit': '%', 'mult': 0.01, 'shift': 0}},
-            range(0x0700, 0x070f) : {0: {'name': 'AccX', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
-            range(0x0710, 0x071f) : {0: {'name': 'AccY', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
-            range(0x0720, 0x072f) : {0: {'name': 'AccZ', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
-            range(0x0800, 0x080f) : {0: {'name': 'GPSLong', 'unit': '', 'mult': 0.01, 'shift': 0},
-                                    1: {'name': 'GPSLat', 'unit': '', 'mult': 0.01, 'shift': 16}},
-            range(0x0820, 0x082f) : {0: {'name': 'GPSAlt', 'unit': 'm', 'mult': 0.01, 'shift': 0}},
-            range(0x0830, 0x083f) : {0: {'name': 'GPSSpeed', 'unit': 'kts', 'mult': 0.001, 'shift': 0}},
-            range(0x0840, 0x084f) : {0: {'name': 'GPSCours', 'unit': 'º', 'mult': 0.01, 'shift': 0}},
-            range(0x0850, 0x085f) : {0: {'name': 'GPSTime', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
-            range(0x0900, 0x090f) : {0: {'name': 'A3', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
-            range(0x0910, 0x091f) : {0: {'name': 'A4', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
-            range(0x0a00, 0x0a0f) : {0: {'name': 'AirSpeed', 'unit': 'kts', 'mult': 0.01, 'shift': 0}},
-            range(0x0b00, 0x0b0f) : {0: {'name': 'RboxBatt1', 'unit': 'v', 'mult': 0.001, 'shift': 0}},
-            range(0x0b10, 0x0b1f) : {0: {'name': 'RboxBatt2', 'unit': 'v', 'mult': 0.001, 'shift': 0}},
-            range(0x0b20, 0x0b2f) : {0: {'name': 'RboxState', 'unit': '', 'mult': 0.01, 'shift': 0}},
-            range(0x0b30, 0x0b3f) : {0: {'name': 'RboxCons', 'unit': 'mAh', 'mult': 1, 'shift': 0}},
-            range(0x0b50, 0x0b5f) : {0: {'name': 'EscV', 'unit': 'v', 'mult': 0.01, 'shift': 0},
-                                    1: {'name': 'EscA', 'unit': 'A', 'mult': 0.01, 'shift': 16}},
-            range(0x0b60, 0x0b6f) : {0: {'name': 'EscRpm', 'unit': 'rpm', 'mult': 100, 'shift': 0},
-                                    1: {'name': 'EscCons', 'unit': 'mAh', 'mult': 1, 'shift': 0}},
-            range(0x0d00, 0x0d0f) : {0: {'name': 'GassuitT1', 'unit': 'C', 'mult': 1, 'shift': 0}},
-            range(0x0d10, 0x0d1f) : {0: {'name': 'GassuitT2', 'unit': 'C', 'mult': 1, 'shift': 0}},
-            range(0x0d20, 0x0d2f) : {0: {'name': 'GassuitSpeed', 'unit': 'rpm', 'mult': 1, 'shift': 0}},
-            range(0x0d30, 0x0d3f) : {0: {'name': 'GassuitResVol', 'unit': 'ml', 'mult': 1, 'shift': 0}},
-            range(0x0d40, 0x0d4f) : {0: {'name': 'GassuitPerc', 'unit': '%', 'mult': 1, 'shift': 0}},
+        range(0x0100, 0x010f): {0: {'name': 'Alt', 'unit': 'm', 'mult': 1, 'shift': 0}},
+        range(0x0110, 0x011f): {0: {'name': 'Vario', 'unit': 'm/s', 'mult': 1, 'shift': 0.01}},
+        range(0x0200, 0x020f): {0: {'name': 'Curr', 'unit': 'A', 'mult': 0.1, 'shift': 0}},
+        range(0x0210, 0x021f): {0: {'name': 'VFAS', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
+        range(0x0300, 0x030f): {0: {'name': 'Cell', 'unit': 'v', 'mult': 0.02, 'shift': 0}},
+        range(0x0400, 0x040f): {0: {'name': 'Temp1', 'unit': 'C', 'mult': 1, 'shift': 0}},
+        range(0x0410, 0x041f): {0: {'name': 'Temp2', 'unit': 'C', 'mult': 1, 'shift': 0}},
+        range(0x0500, 0x050f): {0: {'name': 'Rpm', 'unit': 'rpm', 'mult': 1, 'shift': 0}},
+        range(0x0600, 0x060f): {0: {'name': 'Fuel', 'unit': '%', 'mult': 0.01, 'shift': 0}},
+        range(0x0700, 0x070f): {0: {'name': 'AccX', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
+        range(0x0710, 0x071f): {0: {'name': 'AccY', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
+        range(0x0720, 0x072f): {0: {'name': 'AccZ', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
+        range(0x0800, 0x080f): {0: {'name': 'GPSLong', 'unit': '', 'mult': 0.01, 'shift': 0},
+                                1: {'name': 'GPSLat', 'unit': '', 'mult': 0.01, 'shift': 16}},
+        range(0x0820, 0x082f): {0: {'name': 'GPSAlt', 'unit': 'm', 'mult': 0.01, 'shift': 0}},
+        range(0x0830, 0x083f): {0: {'name': 'GPSSpeed', 'unit': 'kts', 'mult': 0.001, 'shift': 0}},
+        range(0x0840, 0x084f): {0: {'name': 'GPSCours', 'unit': 'º', 'mult': 0.01, 'shift': 0}},
+        range(0x0850, 0x085f): {0: {'name': 'GPSTime', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
+        range(0x0900, 0x090f): {0: {'name': 'A3', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
+        range(0x0910, 0x091f): {0: {'name': 'A4', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
+        range(0x0a00, 0x0a0f): {0: {'name': 'AirSpeed', 'unit': 'kts', 'mult': 0.01, 'shift': 0}},
+        range(0x0b00, 0x0b0f): {0: {'name': 'RboxBatt1', 'unit': 'v', 'mult': 0.001, 'shift': 0}},
+        range(0x0b10, 0x0b1f): {0: {'name': 'RboxBatt2', 'unit': 'v', 'mult': 0.001, 'shift': 0}},
+        range(0x0b20, 0x0b2f): {0: {'name': 'RboxState', 'unit': '', 'mult': 0.01, 'shift': 0}},
+        range(0x0b30, 0x0b3f): {0: {'name': 'RboxCons', 'unit': 'mAh', 'mult': 1, 'shift': 0}},
+        range(0x0b50, 0x0b5f): {0: {'name': 'EscV', 'unit': 'v', 'mult': 0.01, 'shift': 0},
+                                1: {'name': 'EscA', 'unit': 'A', 'mult': 0.01, 'shift': 16}},
+        range(0x0b60, 0x0b6f): {0: {'name': 'EscRpm', 'unit': 'rpm', 'mult': 100, 'shift': 0},
+                                1: {'name': 'EscCons', 'unit': 'mAh', 'mult': 1, 'shift': 0}},
+        range(0x0d00, 0x0d0f): {0: {'name': 'GassuitT1', 'unit': 'C', 'mult': 1, 'shift': 0}},
+        range(0x0d10, 0x0d1f): {0: {'name': 'GassuitT2', 'unit': 'C', 'mult': 1, 'shift': 0}},
+        range(0x0d20, 0x0d2f): {0: {'name': 'GassuitSpeed', 'unit': 'rpm', 'mult': 1, 'shift': 0}},
+        range(0x0d30, 0x0d3f): {0: {'name': 'GassuitResVol', 'unit': 'ml', 'mult': 1, 'shift': 0}},
+        range(0x0d40, 0x0d4f): {0: {'name': 'GassuitPerc', 'unit': '%', 'mult': 1, 'shift': 0}},
 
-            range(0x0d50, 0x0d5f) : {0: {'name': 'GassuitFlow', 'unit': '%', 'mult': 1, 'shift': 0}},
-            range(0x0d60, 0x0d6f) : {0: {'name': 'GassuitMaxFlow', 'unit': '%', 'mult': 1, 'shift': 0}},
-            range(0x0d70, 0x0d7f) : {0: {'name': 'GassuitAvgFlow', 'unit': '%', 'mult': 1, 'shift': 0}},
-            range(0x0e50, 0x0e5f) : {0: {'name': 'SBecV', 'unit': 'v', 'mult': 0.01, 'shift': 0},
-                                    1: {'name': 'SBecA', 'unit': 'A', 'mult': 0.01, 'shift': 16}},
-            range(0xf101, 0xf102) : {0: {'name': 'RSSI', 'unit': '', 'mult': 1, 'shift': 0}},
-            range(0xf102, 0xf103) : {0: {'name': 'A1', 'unit': 'v', 'mult': 0.1, 'shift': 0}},
-            range(0xf103, 0xf104) : {0: {'name': 'A2', 'unit': 'v', 'mult': 0.1, 'shift': 0}},
-            range(0xf104, 0xf105) : {0: {'name': 'RXBT', 'unit': 'v', 'mult': 0.1, 'shift': 0}},
-            range(0xf105, 0xf106) : {0: {'name': 'RAS', 'unit': '%', 'mult': 1, 'shift': 0}},
-            range(0x0a10, 0x0a1f) : {0: {'name': 'FuelQty', 'unit': 'ml', 'mult': 0.01, 'shift': 0}},
+        range(0x0d50, 0x0d5f): {0: {'name': 'GassuitFlow', 'unit': '%', 'mult': 1, 'shift': 0}},
+        range(0x0d60, 0x0d6f): {0: {'name': 'GassuitMaxFlow', 'unit': '%', 'mult': 1, 'shift': 0}},
+        range(0x0d70, 0x0d7f): {0: {'name': 'GassuitAvgFlow', 'unit': '%', 'mult': 1, 'shift': 0}},
+        range(0x0e50, 0x0e5f): {0: {'name': 'SBecV', 'unit': 'v', 'mult': 0.01, 'shift': 0},
+                                1: {'name': 'SBecA', 'unit': 'A', 'mult': 0.01, 'shift': 16}},
+        range(0xf101, 0xf102): {0: {'name': 'RSSI', 'unit': '', 'mult': 1, 'shift': 0}},
+        range(0xf102, 0xf103): {0: {'name': 'A1', 'unit': 'v', 'mult': 0.1, 'shift': 0}},
+        range(0xf103, 0xf104): {0: {'name': 'A2', 'unit': 'v', 'mult': 0.1, 'shift': 0}},
+        range(0xf104, 0xf105): {0: {'name': 'RXBT', 'unit': 'v', 'mult': 0.1, 'shift': 0}},
+        range(0xf105, 0xf106): {0: {'name': 'RAS', 'unit': '%', 'mult': 1, 'shift': 0}},
+        range(0x0a10, 0x0a1f): {0: {'name': 'FuelQty', 'unit': 'ml', 'mult': 0.01, 'shift': 0}},
     }
-    
+
     for key in data:
         if data_id in key:
             return data[key]
 
+
 def close_toast(obj):
     obj.dismiss()
 
+
 sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-smartport_app = SmartportApp(title = 'Smartport')
+smartport_app = SmartportApp(title='Smartport')
 telemetry = {}
 telemetry['sensor_id'] = 0
 bt = {
@@ -402,7 +416,7 @@ sensor = {
     'sensor_id': 0,
     'data_id': 0,
     'index': 0,
-    'unit' : ''
+    'unit': ''
 }
 monitor = {
     'type': 'monitor',
