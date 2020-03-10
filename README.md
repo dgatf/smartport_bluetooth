@@ -2,11 +2,16 @@
 
 This is a Frsky Smartport client for devices with bluetooth written in Python 3 and Kivy
 
-Currently supported: Linux, OS X and Windows
+- Support for bluetooth 2. It doesn't work with bluetooth 4 (BLE)
+- Support for ACCST X series. It doesn't work with D series or ACCESS protocol
+- Supported OS: Linux, OS X and Windows
 
 ## Installation
 
-Prerequisites: Python 3 with Kivy and pybluez modules
+Prerequisites:
+
+- Python 3 with Kivy and pybluez modules
+- [OpenTx with smartport power control](https://github.com/dgatf/opentx)
 
 Install python modules
 
