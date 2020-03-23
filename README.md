@@ -2,8 +2,8 @@
 
 This is a Frsky Smartport client for devices with bluetooth written in Python 3 and Kivy
 
-- Support for bluetooth 2. It doesn't work with bluetooth 4 (BLE)
-- Support for ACCST X series. It doesn't work with D series or ACCESS protocol
+- Support for bluetooth 2. Bluetooth 4 (BLE) not supported
+- Support for ACCST X series. ACCST D series and ACCESS protocols not supported
 - Supported OS: Linux, OS X and Windows
 
 ## Installation
