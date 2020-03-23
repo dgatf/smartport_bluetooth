@@ -17,7 +17,7 @@ Install python modules
 
 *python3 -m pip install kivy pybluez*
 
-Copy folder *smartport_bt* and execute
+Copy folder *smartportbt* and execute
 
 *python3 smartport.py*
 
