@@ -11,7 +11,7 @@ This is a Frsky Smartport client for devices with bluetooth written in Python 3 
 Prerequisites:
 
 - Python 3 with Kivy and pybluez modules
-- [OpenTx with smartport power control](https://github.com/dgatf/opentx/tree/smartport_power)
+- OpentTx 2.3.6
 
 Install python modules
 
