@@ -4,9 +4,11 @@ This is a Frsky Smartport client for devices with bluetooth written in Python 3 
 
 - Support for bluetooth 2. Bluetooth 4 (BLE) not supported
 - Support for ACCST X series. ACCST D series and ACCESS protocols not supported
-- Supported OS: Linux, OS X and Windows
+- Supported OS: Android, Linux, OS X and Windows
 
 ## Installation
+
+## Linux, OS X and Windows
 
 Prerequisites:
 
@@ -17,9 +19,13 @@ Install python modules
 
 *python3 -m pip install kivy pybluez*
 
-Copy folder *smartportbt* and execute
+Copy folder *src* and execute
 
-*python3 smartport.py*
+*python3 main.py*
+
+## Android
+
+Install [apk](bin/smartportbt_unsingned.apk)
 
 
 <p align="center"><img src="./images/models.png" width="300"><br>

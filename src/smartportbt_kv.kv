@@ -12,15 +12,13 @@
             text: 'Rename'
             size_hint_y: None
             height: '1cm'
-            font_size: '0.5cm'
         Button:
             id: delete
             text: 'Delete'
             size_hint_y: None
             height: '1cm'
-            font_size: '0.5cm'
 
-<PopupToast@Popup>:
+<Toast@Popup>:
     title: ''
     separator_height: 0
     size_hint: None, None
@@ -30,7 +28,6 @@
 <ButtonList@LongpressButton>:
     size_hint_y: None
     height: '1cm'
-    font_size: '0.5cm'
     long_press_time: 0.3
 
 <ButtonSensor>:
@@ -42,9 +39,8 @@
     sensor_value: 0
     sensor_index: 0
     sensor_unit: 'no unit'
-    label: '[size=0.8cm]' + self.sensor_name + '\n[/size][size=1.2cm]' + str(self.sensor_value) + ' ' + self.sensor_unit + '[/size]'
-    text: self.label
-    font_size: '0.8cm'
+    text: self.sensor_name + '\n' + str(self.sensor_value) + ' ' + self.sensor_unit
+    font_size: self.height/3
 
 <MyScreenManager>:
     ScreenMonitors:
@@ -71,16 +67,16 @@
             ActionView:
                 use_separator: True
                 ActionPrevious:
-                    app_icon: ''
-                    title: 'Smartport'
+                    app_icon: 'data/remote.png'
+                    title: 'Smartport BT'
                     with_previous: False
                 ActionOverflow:
                 ActionButton:
-                    id: image_connection
-                    icon: 'circle-red.png'
-                ActionButton:
                     text: 'Connect'
                     on_release: root.list_bluetooth()
+                ActionButton:
+                    id: image_connection
+                    icon: 'data/circle-red.png'
                 ActionGroup:
                     text: 'Menu'
                     mode: 'spinner'
@@ -96,9 +92,8 @@
             GridLayout:
                 id: list_config
                 cols: 1
-                size_hint_y: None
                 height: self.minimum_height
-
+                
 <ScreenMonitor>:
     GridLayout:
         cols: 1
@@ -108,7 +103,7 @@
                 use_separator: True
                 ActionPrevious:
                     app_icon: ''
-                    title: 'Smartport'
+                    title: 'Smartport BT'
                     with_previous: False
                 ActionOverflow:
                 ActionButton:
@@ -150,7 +145,7 @@
                 use_separator: True
                 ActionPrevious:
                     app_icon: ''
-                    title: 'Smartport'
+                    title: 'Smartport BT'
                     with_previous: False
                 ActionOverflow:
                 ActionButton:
@@ -164,14 +159,12 @@
             size_hint: 1, .9
             Label:
                 height: '1cm'
-                font_size: '0.5cm'
                 size_hint_y: None
                 text_size: self.size
                 text: 'Name'
             TextInput:
                 id: text_name
                 height: '1cm'
-                font_size: '0.5cm'
                 size_hint_y: None
                 multiline: False
 
@@ -189,7 +182,7 @@
                 use_separator: True
                 ActionPrevious:
                     app_icon: ''
-                    title: 'Smartport'
+                    title: 'Smartport BT'
                     with_previous: False
                 ActionOverflow:
                 ActionButton:
@@ -203,14 +196,12 @@
             Label:
                 text: 'Sensor name'
                 height: '1cm'
-                font_size: '0.5cm'
                 text_size: self.size
                 size_hint_y: None
             Button:
                 height: '1cm'
                 width: '5cm'
                 valign: 'center'
-                font_size: '0.5cm'
                 text_size: self.size
                 size_hint: None, None
                 text: str(root.sensor_name)
@@ -218,12 +209,10 @@
             Label:
                 text: 'Sensor Id'
                 height: '1cm'
-                font_size: '0.5cm'
                 text_size: self.size
                 size_hint_y: None
             Label:
                 height: '1cm'
-                font_size: '0.5cm'
                 text_size: self.size
                 text: hex(int(root.sensor_id))
                 size_hint_y: None
@@ -231,13 +220,11 @@
                 text: 'Sensor frame'
                 text_size: self.size
                 height: '1cm'
-                font_size: '0.5cm'
                 text_size: self.size
                 size_hint_y: None
             Label:
                 text: 'Sensor frame'
                 height: '1cm'
-                font_size: '0.5cm'
                 text_size: self.size
                 text: hex(int(root.sensor_data_id))
                 size_hint_y: None            
@@ -251,7 +238,7 @@
                 use_separator: True
                 ActionPrevious:
                     app_icon: ''
-                    title: 'Smartport'
+                    title: 'Smartport BT'
                     with_previous: False
                 ActionOverflow:
                 ActionButton:
