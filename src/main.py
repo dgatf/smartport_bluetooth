@@ -308,7 +308,7 @@ def connect_bluetooth(device):
         else:
             socket_bt.settimeout(0.1)
             return True
-    if platform  == 'android':  
+    if platform  == 'android':
         try:
             socket_bt = device.createRfcommSocketToServiceRecord(
                 UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
