@@ -25,7 +25,7 @@ Copy folder *src* and execute
 
 ## Android
 
-Install [apk](bin/smartportbt_unsingned.apk)
+Install [apk](bin/smartportbt_unsigned.apk)
 
 
 <p align="center"><img src="./images/models.png" width="300"><br>
