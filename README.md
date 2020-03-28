@@ -27,6 +27,8 @@ Copy folder *src* and execute
 
 Install [apk](bin/smartportbt_unsigned.apk)
 
+Pair the bluetooth device before launching the app
+
 
 <p align="center"><img src="./images/models.png" width="300"><br>
 
