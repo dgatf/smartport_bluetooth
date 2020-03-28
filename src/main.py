@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """
            Smartport bluetooth client
            
@@ -12,15 +14,8 @@ __version__ = "0.1"
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
-#from kivy.uix.label import Label
 from kivy.uix.button import Button
-#from kivy.uix.boxlayout import BoxLayout
-#from kivy.uix.textinput import TextInput
-#from kivy.uix.scrollview import ScrollView
-#from kivy.uix.gridlayout import GridLayout
 from kivy.uix.popup import Popup
-#from kivy.uix.actionbar import ActionBar
-#from kivy.uix.image import Image
 from kivy.factory import Factory
 from kivy.core.window import Window
 from kivy.storage.jsonstore import JsonStore
@@ -28,8 +23,7 @@ from kivy.clock import Clock
 from kivy.utils import platform
 import json
 import uuid
-import time
-#import sys
+#import time
 import logging
 Builder.load_file('smartportbt_kv.kv')
 
@@ -72,6 +66,7 @@ class ScreenMonitors(Screen):
         button.bind(on_short_press=screen_monitors.show_screen_monitor)
         self.ids.list_config.add_widget(button)
         screen_edit_name.origin = button
+        screen_edit_name.ids.text_name.text = ''
         config[button.uuid] = monitor
         screen_manager.current = 'screen_edit_name'
 
@@ -88,12 +83,11 @@ class ScreenMonitors(Screen):
         popup_list.origin = obj
         popup_list.ids.rename.bind(on_release=self.show_screen_edit_name)
         popup_list.ids.delete.bind(on_release=self.delete_monitor)
-        x, y = obj.to_window(*obj.pos)
-        pos_y = y / Window.height
-        if pos_y > 0.8:
-            pos_y = 0.8
-        popup_list.pos_hint = {'x': 0.3, 'y': pos_y}
         popup_list.open()
+
+    def show_popup_about(self):
+        popup_about = Factory.PopupAbout()
+        popup_about.open()
 
     def show_screen_edit_name(self, obj):
         screen_edit_name.origin = self.popup.origin
@@ -147,13 +141,18 @@ class ScreenMonitors(Screen):
             except OSError:
                 smartport_app.show_toast('Bluetooth not enabled')
                 return
+            screen_list.ids.actionbar.title = 'Available devices'
             for address, name in devices:
                 button = Factory.ButtonList(text=name)
                 button.device = {'name': name,'address': address}
                 button.bind(on_release=self.connect)
                 screen_list.ids.list.add_widget(button)
         if platform  == 'android':
+            if bluetooth_adapter.getDefaultAdapter().isEnabled() == False:
+                smartport_app.show_toast('Bluetooth not enabled')
+                return
             paired_devices = bluetooth_adapter.getDefaultAdapter().getBondedDevices().toArray()
+            screen_list.ids.actionbar.title = 'Paired devices'
             for device in paired_devices:
                 button = Factory.ButtonList(text=device.getName())
                 button.device = device
@@ -246,6 +245,7 @@ class ScreenEditSensor(Screen):
                             button.bind(on_release=self.select_sensor)
                             screen_list.ids.list.add_widget(button)
         screen_list.previous = 'screen_edit_sensor'
+        screen_list.ids.actionbar.title = 'Available sensors'
         screen_manager.current = 'screen_list'
 
     def select_sensor(self, sensor):
@@ -284,9 +284,9 @@ class ScreenList(Screen):
 class SmartportApp(App):
 
     def show_toast(self, title):
-        self.toast = Factory.Toast(title=title)
-        Clock.schedule_interval(self.close_toast, 2)
-        #popup_list.pos_hint = {'x': 0.5, 'y': 0.5}
+        self.toast = Factory.Toast()
+        self.toast.ids.label.text = title
+        Clock.schedule_interval(self.close_toast, 3)
         self.toast.open()
 
     def close_toast(self, obj):
@@ -304,13 +304,11 @@ def connect_bluetooth(device):
         try:
             socket_bt.connect((device['address'], port))
         except BaseException:
-            # print('Error: ', sys.exc_info()[0])
             return False
         else:
             socket_bt.settimeout(0.1)
             return True
-    if platform  == 'android':
-        
+    if platform  == 'android':  
         try:
             socket_bt = device.createRfcommSocketToServiceRecord(
                 UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
