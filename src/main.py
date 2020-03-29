@@ -28,29 +28,25 @@ import logging
 Builder.load_file('smartportbt_kv.kv')
 
 
-class Bluetooth2Error(Exception):
+class BluetoothExtendedError(Exception):
         pass
 
 
-class Bluetooth2():
+class BluetoothExtended():
 
     def __init__(self, **kwargs):
         if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
             import bluetooth
-            from bluetooth import BluetoothError
             self.bluetooth = bluetooth
-            self.error = BluetoothError
         if platform  == 'android':
-            from jnius import JavaException
             from jnius import autoclass
             self.bluetooth = autoclass('android.bluetooth.BluetoothAdapter')
             self.UUID = autoclass('java.util.UUID')
-            self.error = JavaException
 
     def get_bonded_devices(self):
         if platform  == 'android':
             if self.bluetooth.getDefaultAdapter().isEnabled() == False:
-                raise Bluetooth2Error(1, 'Bluetooth not enabled')
+                raise BluetoothExtendedError(1, 'Bluetooth not enabled')
             return self.bluetooth.getDefaultAdapter().getBondedDevices().toArray()
 
     def scan_devices(self):
@@ -61,8 +57,11 @@ class Bluetooth2():
                     lookup_names=True,
                     flush_cache=True,
                     lookup_class=False)
-            except OSError:
-                raise Bluetooth2Error(1, 'Bluetooth not enabled')
+            except OSError as error:
+                if error.args[0] == 19:
+                    raise BluetoothExtendedError(1, 'Bluetooth not enabled')
+                else:
+                    raise BluetoothExtendedError(10, 'Unknown error: ' + error.args[1])
             return devices
 
     def connect(self, device):
@@ -71,33 +70,37 @@ class Bluetooth2():
             self.socket = self.bluetooth.BluetoothSocket(self.bluetooth.RFCOMM)
             try:
                 self.socket.connect((device['address'], port))
-            except self.error:
-                raise Bluetooth2Error(2, 'Couldn\'t connect')
+            except self.bluetooth.btcommon.BluetoothError as error:
+                if error.args[0] == 112:
+                    raise BluetoothExtendedError(2, 'Couldn\'t connect')
+                else:
+                    raise BluetoothExtendedError(10, 'Unknown error: ' + error.args[1])
             else:
                 self.socket.settimeout(0.1)
-                return True
         if platform  == 'android':
             try:
                 self.socket = device.createRfcommSocketToServiceRecord(
                     self.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
                 self.socket.connect()
-            except self.error:
-                raise Bluetooth2Error(2, 'Couldn\'t connect')
-        return True
+            except Exception as error:
+                raise BluetoothExtendedError(2, 'Couldn\'t connect')
 
     def read(self):
         if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
             try:
                 c = self.socket.recv(1)
-            except self.error:
-                raise Bluetooth2Error(3, 'Read timeout')
+            except self.bluetooth.btcommon.BluetoothError as error:
+                if error.args[0] == 'timed out':
+                    raise BluetoothExtendedError(3, 'Read timeout')
+                else:
+                    raise BluetoothExtendedError(10, 'Unknown error: ' + error.args[0])
             return c
         if platform  == 'android':
             if self.socket.getInputStream().available():
                 c = [0]
                 self.socket.read(c,0,1)
                 return c[0].to_bytes(1, 'big')       
-            raise Bluetooth2Error(3, 'Read timeout')
+            raise BluetoothExtendedError(3, 'Read timeout')
 
 
 class LongpressButton(Button):
@@ -205,8 +208,8 @@ class ScreenMonitors(Screen):
     def list_bluetooth(self):
         if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
             try:
-                devices = bt2.scan_devices()
-            except Bluetooth2Error as error:
+                devices = bluetooth_extended.scan_devices()
+            except BluetoothExtendedError as error:
                 smartport_app.show_toast(error.args[1])
                 return
             screen_list.ids.actionbar.title = 'Available devices'
@@ -217,8 +220,8 @@ class ScreenMonitors(Screen):
                 screen_list.ids.list.add_widget(button)
         if platform  == 'android':
             try:
-                devices = bt2.get_bonded_devices()
-            except Bluetooth2Error as error:
+                devices = bluetooth_extended.get_bonded_devices()
+            except BluetoothExtendedError as error:
                 smartport_app.show_toast(error.args[1])
                 return
             screen_list.ids.actionbar.title = 'Paired devices'
@@ -231,8 +234,12 @@ class ScreenMonitors(Screen):
         screen_manager.current = 'screen_list'
 
     def connect(self, instance):
-        result = bt2.connect(instance.device)
-        if result == True:
+        try:
+            bluetooth_extended.connect(instance.device)
+        except BluetoothExtendedError as error:
+            smartport_app.show_toast(error.args[1])
+            self.ids.image_connection.icon = 'data/circle-red.png'
+        else:
             Clock.schedule_interval(read_bluetooth, 0.1)
             Clock.schedule_interval(screen_monitor.update_sensors, 0.1)
             if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
@@ -243,10 +250,7 @@ class ScreenMonitors(Screen):
                 config['settings']['bt']['address'] = instance.device.getAddress()
             store['settings'] = config['settings']
             self.ids.image_connection.icon = 'data/circle-green.png'
-            screen_manager.current = 'screen_monitors'
-        else:
-            smartport_app.show_toast('Error bluetooth: ' + result)
-            self.ids.image_connection.icon = 'data/circle-red.png'
+            screen_manager.current = 'screen_monitors'       
 
 
 class ScreenMonitor(Screen):
@@ -385,13 +389,13 @@ def read_bluetooth(obj):
     data = []
     try:
         while True:
-            c = bt2.read()
+            c = bluetooth_extended.read()
             if c == 0x7D:
-                data.append((int.from_bytes(bt2.read(), 'big')
+                data.append((int.from_bytes(bluetooth_extended.read(), 'big')
                             ^ 0x20).to_bytes(1, 'big'))
             else:
                 data.append(c)
-    except Bluetooth2Error:
+    except BluetoothExtendedError:
         if len(data) == 8:
             crc = 0
             for c in data:
@@ -527,6 +531,6 @@ for element in store.keys():
             button.bind(on_short_press=screen_monitors.show_screen_monitor)
             screen_monitors.ids.list_config.add_widget(button)
 
-bt2 = Bluetooth2()
+bluetooth_extended = BluetoothExtended()
 
 smartport_app.run()
