@@ -28,6 +28,78 @@ import logging
 Builder.load_file('smartportbt_kv.kv')
 
 
+class Bluetooth2Error(Exception):
+        pass
+
+
+class Bluetooth2():
+
+    def __init__(self, **kwargs):
+        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+            import bluetooth
+            from bluetooth import BluetoothError
+            self.bluetooth = bluetooth
+            self.error = BluetoothError
+        if platform  == 'android':
+            from jnius import JavaException
+            from jnius import autoclass
+            self.bluetooth = autoclass('android.bluetooth.BluetoothAdapter')
+            self.UUID = autoclass('java.util.UUID')
+            self.error = JavaException
+
+    def get_bonded_devices(self):
+        if platform  == 'android':
+            if self.bluetooth.getDefaultAdapter().isEnabled() == False:
+                raise Bluetooth2Error(1, 'Bluetooth not enabled')
+            return self.bluetooth.getDefaultAdapter().getBondedDevices().toArray()
+
+    def scan_devices(self):
+        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+            try:
+                devices = self.bluetooth.discover_devices(
+                    duration=4,
+                    lookup_names=True,
+                    flush_cache=True,
+                    lookup_class=False)
+            except OSError:
+                raise Bluetooth2Error(1, 'Bluetooth not enabled')
+            return devices
+
+    def connect(self, device):
+        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+            port = 1
+            self.socket = self.bluetooth.BluetoothSocket(self.bluetooth.RFCOMM)
+            try:
+                self.socket.connect((device['address'], port))
+            except self.error:
+                raise Bluetooth2Error(2, 'Couldn\'t connect')
+            else:
+                self.socket.settimeout(0.1)
+                return True
+        if platform  == 'android':
+            try:
+                self.socket = device.createRfcommSocketToServiceRecord(
+                    self.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
+                self.socket.connect()
+            except self.error:
+                raise Bluetooth2Error(2, 'Couldn\'t connect')
+        return True
+
+    def read(self):
+        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+            try:
+                c = self.socket.recv(1)
+            except self.error:
+                raise Bluetooth2Error(3, 'Read timeout')
+            return c
+        if platform  == 'android':
+            if self.socket.getInputStream().available():
+                c = [0]
+                self.socket.read(c,0,1)
+                return c[0].to_bytes(1, 'big')       
+            raise Bluetooth2Error(3, 'Read timeout')
+
+
 class LongpressButton(Button):
     __events__ = ('on_short_press', 'on_long_press',)
 
@@ -91,7 +163,6 @@ class ScreenMonitors(Screen):
 
     def show_screen_edit_name(self, obj):
         screen_edit_name.origin = self.popup.origin
-        #screen_edit_name.monitor_name = self.popup.origin.text
         screen_edit_name.ids.text_name.text = self.popup.origin.text
         screen_manager.current = 'screen_edit_name'
         self.popup.dismiss()
@@ -128,18 +199,15 @@ class ScreenMonitors(Screen):
         screen_monitor.ids.sensor6.sensor_data_id = config[obj.uuid]['sensor6']['data_id']
         screen_monitor.ids.sensor6.sensor_index = config[obj.uuid]['sensor6']['index']
         screen_monitor.ids.sensor6.sensor_id = config[obj.uuid]['sensor6']['sensor_id']
+        screen_monitor.ids.title.title = obj.text
         screen_manager.current = 'screen_monitor'
 
     def list_bluetooth(self):
         if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
             try:
-                devices = bluetooth.discover_devices(
-                    duration=4,
-                    lookup_names=True,
-                    flush_cache=True,
-                    lookup_class=False)
-            except OSError:
-                smartport_app.show_toast('Bluetooth not enabled')
+                devices = bt2.scan_devices()
+            except Bluetooth2Error as error:
+                smartport_app.show_toast(error.args[1])
                 return
             screen_list.ids.actionbar.title = 'Available devices'
             for address, name in devices:
@@ -148,25 +216,25 @@ class ScreenMonitors(Screen):
                 button.bind(on_release=self.connect)
                 screen_list.ids.list.add_widget(button)
         if platform  == 'android':
-            if bluetooth_adapter.getDefaultAdapter().isEnabled() == False:
-                smartport_app.show_toast('Bluetooth not enabled')
+            try:
+                devices = bt2.get_bonded_devices()
+            except Bluetooth2Error as error:
+                smartport_app.show_toast(error.args[1])
                 return
-            paired_devices = bluetooth_adapter.getDefaultAdapter().getBondedDevices().toArray()
             screen_list.ids.actionbar.title = 'Paired devices'
-            for device in paired_devices:
+            for device in devices:
                 button = Factory.ButtonList(text=device.getName())
                 button.device = device
                 button.bind(on_release=self.connect)
                 screen_list.ids.list.add_widget(button)
-
         screen_list.previous = 'screen_monitors'
         screen_manager.current = 'screen_list'
 
     def connect(self, instance):
-        result = connect_bluetooth(instance.device)
-        screen_list.ids.list.clear_widgets()
-        if result:
+        result = bt2.connect(instance.device)
+        if result == True:
             Clock.schedule_interval(read_bluetooth, 1)
+            Clock.schedule_interval(screen_monitor.update_sensors, 1)
             if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
                 config['settings']['bt']['name'] = instance.device['name']
                 config['settings']['bt']['address'] = instance.device['address']
@@ -175,29 +243,13 @@ class ScreenMonitors(Screen):
                 config['settings']['bt']['address'] = instance.device.getAddress()
             store['settings'] = config['settings']
             self.ids.image_connection.icon = 'data/circle-green.png'
-            logging.info(socket_bt)
+            screen_manager.current = 'screen_monitors'
         else:
-            smartport_app.show_toast('Error bluetooth')
+            smartport_app.show_toast('Error bluetooth: ' + result)
             self.ids.image_connection.icon = 'data/circle-red.png'
-        screen_manager.current = 'screen_monitors'
 
 
 class ScreenMonitor(Screen):
-
-    def show_popup_monitor(self, obj):
-        popup_monitor = Factory.Popupmonitor()
-        self.popup = popup_monitor
-        popup_monitor.sensor = obj
-        popup_monitor.ids.edit.bind(on_release=self.show_screen_edit_sensor)
-        x, y = obj.to_window(*obj.pos)
-        pos_y = y / Window.height
-        pos_x = x / Window.height
-        if pos_y > 0.8:
-            pos_y = 0.8
-        if pos_x > 0.6:
-            pos_x = 0.6
-        popup_monitor.pos_hint = {'x': pos_x, 'y': pos_y}
-        popup_monitor.open()
 
     def show_screen_monitors(self):
         screen_manager.current = 'screen_monitors'
@@ -209,6 +261,38 @@ class ScreenMonitor(Screen):
         screen_edit_sensor.sensor_data_id = obj.sensor_data_id
         screen_edit_sensor.sensor_index = obj.sensor_index
         screen_manager.current = 'screen_edit_sensor'
+
+    def update_sensors(self, ts):
+        try:
+            self.ids.sensor1.sensor_value = telemetry[self.ids.sensor1.sensor_id][
+                self.ids.sensor1.sensor_data_id][self.ids.sensor1.sensor_index]
+        except KeyError:
+            pass
+        try:
+            self.ids.sensor2.sensor_value = telemetry[self.ids.sensor2.sensor_id][
+                self.ids.sensor2.sensor_data_id][self.ids.sensor2.sensor_index]
+        except KeyError:
+            pass
+        try:
+            self.ids.sensor3.sensor_value = telemetry[self.ids.sensor3.sensor_id][
+                self.ids.sensor3.sensor_data_id][self.ids.sensor3.sensor_index]
+        except KeyError:
+            pass
+        try:
+            self.ids.sensor4.sensor_value = telemetry[self.ids.sensor4.sensor_id][
+                self.ids.sensor4.sensor_data_id][self.ids.sensor4.sensor_index]
+        except KeyError:
+            pass
+        try:
+            self.ids.sensor5.sensor_value = telemetry[self.ids.sensor5.sensor_id][
+                self.ids.sensor5.sensor_data_id][self.ids.sensor5.sensor_index]
+        except KeyError:
+            pass
+        try:
+            self.ids.sensor6.sensor_value = telemetry[self.ids.sensor6.sensor_id][
+                self.ids.sensor6.sensor_data_id][self.ids.sensor6.sensor_index]
+        except KeyError:
+            pass
 
 
 class ScreenEditName(Screen):
@@ -230,6 +314,7 @@ class ScreenEditName(Screen):
 class ScreenEditSensor(Screen):
 
     def show_sensor_list(self):
+        screen_list.ids.list.clear_widgets()
         for sensor_id in telemetry.keys():
             if not sensor_id == 'sensor_id':
                 for data_id in telemetry[sensor_id].keys():
@@ -296,50 +381,17 @@ class SmartportApp(App):
         return screen_manager
 
 
-def connect_bluetooth(device):
-    global socket_bt
-    if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
-        port = 1
-        socket_bt = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        try:
-            socket_bt.connect((device['address'], port))
-        except BaseException:
-            return False
-        else:
-            socket_bt.settimeout(0.1)
-            return True
-    if platform  == 'android':
-        try:
-            socket_bt = device.createRfcommSocketToServiceRecord(
-                UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
-            socket_bt.connect()
-        except BaseException:
-            return False
-        else:
-            return True
-
 def read_bluetooth(obj):
     data = []
     try:
-        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
-            while True:
-                c = socket_bt.recv(1)
-                if c == 0x7D:
-                    data.append((int.from_bytes(socket_bt.recv(1), 'big')
-                                ^ 0x20).to_bytes(1, 'big'))
-                else:
-                    data.append(c)
-        if platform  == 'android':
-            c = [0]
-            while socket_bt.getInputStream().available():
-                socket_bt.read(c,0,1)
-                if c[0] == 0x7D:
-                    socket_bt.read(c,0,1)
-                    data.append((c[0]^ 0x20).to_bytes(1, 'big'))
-                else:
-                    data.append(c[0].to_bytes(1, 'big'))
-            raise Exception     
-    except:
+        while True:
+            c = bt2.read()
+            if c == 0x7D:
+                data.append((int.from_bytes(bt2.read(), 'big')
+                            ^ 0x20).to_bytes(1, 'big'))
+            else:
+                data.append(c)
+    except Bluetooth2Error:
         if len(data) == 8:
             crc = 0
             for c in data:
@@ -353,7 +405,6 @@ def read_bluetooth(obj):
                 value = int.from_bytes(data[6], "big") << 24 | int.from_bytes(
                     data[5], "big") << 16 | int.from_bytes(data[4], "big") << 8 | int.from_bytes(data[3], "big")
                 sensor_data = get_sensor_data(data_id)
-
                 if sensor_data:
                     for key in sensor_data.keys():
                         if telemetry['sensor_id'] not in telemetry:
@@ -362,37 +413,6 @@ def read_bluetooth(obj):
                             telemetry[telemetry['sensor_id']][data_id] = {}
                         telemetry[telemetry['sensor_id']][data_id][key] = (
                             value >> sensor_data[key]['shift']) * sensor_data[key]['mult']
-                try:
-                    screen_monitor.ids.sensor1.sensor_value = telemetry[screen_monitor.ids.sensor1.sensor_id][
-                        screen_monitor.ids.sensor1.sensor_data_id][screen_monitor.ids.sensor1.sensor_index]
-                except KeyError:
-                    pass
-                try:
-                    screen_monitor.ids.sensor2.sensor_value = telemetry[screen_monitor.ids.sensor2.sensor_id][
-                        screen_monitor.ids.sensor2.sensor_data_id][screen_monitor.ids.sensor2.sensor_index]
-                except KeyError:
-                    pass
-                try:
-                    screen_monitor.ids.sensor3.sensor_value = telemetry[screen_monitor.ids.sensor3.sensor_id][
-                        screen_monitor.ids.sensor3.sensor_data_id][screen_monitor.ids.sensor3.sensor_index]
-                except KeyError:
-                    pass
-                try:
-                    screen_monitor.ids.sensor4.sensor_value = telemetry[screen_monitor.ids.sensor4.sensor_id][
-                        screen_monitor.ids.sensor4.sensor_data_id][screen_monitor.ids.sensor4.sensor_index]
-                except KeyError:
-                    pass
-                try:
-                    screen_monitor.ids.sensor5.sensor_value = telemetry[screen_monitor.ids.sensor5.sensor_id][
-                        screen_monitor.ids.sensor5.sensor_data_id][screen_monitor.ids.sensor5.sensor_index]
-                except KeyError:
-                    pass
-                try:
-                    screen_monitor.ids.sensor6.sensor_value = telemetry[screen_monitor.ids.sensor6.sensor_id][
-                        screen_monitor.ids.sensor6.sensor_data_id][screen_monitor.ids.sensor6.sensor_index]
-                except KeyError:
-                    pass
-
             if len(data) == 2:
                 if data[0] == 0x7E:
                     telemetry['sensor_id'] = data[1]
@@ -451,13 +471,6 @@ def get_sensor_data(data_id):
         if data_id in key:
             return data[key]
 
-socket_bt = None
-if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
-    import bluetooth
-if platform  == 'android':
-    from jnius import autoclass
-    bluetooth_adapter = autoclass('android.bluetooth.BluetoothAdapter')
-    UUID = autoclass('java.util.UUID')
 
 smartport_app = SmartportApp(title='Smartport BT')
 telemetry = {}
@@ -513,5 +526,7 @@ for element in store.keys():
             button.bind(on_long_press=screen_monitors.show_popup_monitors)
             button.bind(on_short_press=screen_monitors.show_screen_monitor)
             screen_monitors.ids.list_config.add_widget(button)
+
+bt2 = Bluetooth2()
 
 smartport_app.run()
