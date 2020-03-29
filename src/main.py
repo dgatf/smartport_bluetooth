@@ -233,8 +233,8 @@ class ScreenMonitors(Screen):
     def connect(self, instance):
         result = bt2.connect(instance.device)
         if result == True:
-            Clock.schedule_interval(read_bluetooth, 1)
-            Clock.schedule_interval(screen_monitor.update_sensors, 1)
+            Clock.schedule_interval(read_bluetooth, 0.1)
+            Clock.schedule_interval(screen_monitor.update_sensors, 0.1)
             if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
                 config['settings']['bt']['name'] = instance.device['name']
                 config['settings']['bt']['address'] = instance.device['address']
