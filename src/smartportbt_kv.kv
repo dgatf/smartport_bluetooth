@@ -41,12 +41,13 @@
 <ButtonSensor>:
     markup: True
     halign: 'center'
-    sensor_name: 'None'
+    sensor_name: ''
     sensor_id: 0
     sensor_data_id: 0
     sensor_value: 0
     sensor_index: 0
-    sensor_unit: 'no unit'
+    sensor_unit: ''
+    alarm: None
     text: (self.sensor_name + '\n' + str(self.sensor_value) + ' ' + self.sensor_unit) if self.sensor_data_id else '-'
     font_size: self.height / 3 if 2 * self.height < self.width else self.width / 6
     long_press_time: 0.3
@@ -88,6 +89,7 @@
                     text: 'Menu'
                     mode: 'spinner'
                     ActionButton:
+                        id: button_connection
                         text: 'Connect'
                         on_release: root.list_bluetooth()
                     ActionButton:
@@ -108,6 +110,7 @@
                 height: self.minimum_height
                 
 <ScreenMonitor>:
+    uuid: ''
     GridLayout:
         cols: 1
         ActionBar:
@@ -205,40 +208,133 @@
                 ActionButton:
                     text: 'Back'
                     on_release: root.show_screen_monitor()
-        GridLayout:
-            cols: 1
-            Label:
-                text: 'Sensor name'
-                height: self.font_size * 2
-                text_size: self.size
+        ScrollView:
+            GridLayout:
+                id: list
+                cols: 1
                 size_hint_y: None
-            Button:
-                height: self.font_size * 2
-                valign: 'center'
-                text_size: self.size
-                size_hint_y: None
-                text: str(root.sensor_name)
-                on_release: root.show_sensor_list()    
-            Label:
-                text: 'Sensor Id'
-                height: self.font_size * 2
-                text_size: self.size
-                size_hint_y: None
-            Label:
-                height: self.font_size * 2
-                text_size: self.size
-                text: hex(int(root.sensor_id))
-                size_hint_y: None
-            Label:
-                text: 'Data Id'
-                height: self.font_size * 2
-                text_size: self.size
-                size_hint_y: None
-            Label:
-                height: self.font_size * 2
-                text_size: self.size
-                text: hex(int(root.sensor_data_id))
-                size_hint_y: None            
+                height: self.minimum_height
+                Label:
+                    text: 'Sensor name'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                Button:
+                    height: self.font_size * 2
+                    valign: 'center'
+                    text_size: self.size
+                    size_hint_y: None
+                    text: str(root.sensor_name)
+                    on_release: root.show_sensor_list()    
+                Label:
+                    text: 'Sensor Id'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                TextInput:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: hex(int(root.sensor_id))
+                    size_hint_y: None
+                    disabled: True
+                Label:
+                    text: 'Data Id'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                TextInput:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: hex(int(root.sensor_data_id))
+                    size_hint_y: None
+                    disabled: True
+                Label:
+                    text: ''
+                    height: self.font_size * 2
+                    size_hint_y: None
+                BoxLayout:
+                    orientation: 'horizontal'
+                    height: root.ids.alarm_text.font_size * 2
+                    size_hint_y: None
+                    Label:
+                        text: 'Alarm'
+                        valign: 'center'
+                        text_size: self.size
+                        size_hint_x: None
+                    CheckBox:
+                        id: alarm_check
+                        pos_hint: {'left': 0}
+                        width: '1cm'
+                        size_hint_x: None
+                Label:
+                    text: 'Condition'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                BoxLayout:
+                    orientation: 'horizontal'
+                    height: root.ids.alarm_text.font_size * 2
+                    size_hint_y: None
+                    ToggleButton:
+                        id: lower
+                        condition: 'lower'
+                        group: 'condition'
+                        text: '<'
+                    ToggleButton:
+                        id: equal
+                        condition: 'equal'
+                        group: 'condition'
+                        text: '='
+                    ToggleButton:
+                        id: higher
+                        condition: 'higher'
+                        group: 'condition'
+                        text: '>'
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Repeat every (sec)'
+                    size_hint_y: None
+                FloatInput:
+                    id: alarm_interval
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: ''
+                    size_hint_y: None
+                    multiline: False
+                    disabled: not root.ids.alarm_check.active
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Value'
+                    size_hint_y: None
+                FloatInput:
+                    id: alarm_value
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: ''
+                    size_hint_y: None
+                    multiline: False
+                    disabled: not root.ids.alarm_check.active
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Text to speech'
+                    size_hint_y: None
+                TextInput:
+                    id: alarm_text
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Warning %s is %v %u'
+                    size_hint_y: None
+                    multiline: False
+                    disabled: not root.ids.alarm_check.active
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: '%s - sensor, %v - value, %u - unit'
+                    size_hint_y: None
+
             
 <ScreenList>:
     GridLayout:

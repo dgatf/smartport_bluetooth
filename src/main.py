@@ -15,42 +15,61 @@ from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
 from kivy.uix.popup import Popup
+from kivy.uix.checkbox import CheckBox
 from kivy.factory import Factory
 from kivy.core.window import Window
 from kivy.storage.jsonstore import JsonStore
 from kivy.clock import Clock
 from kivy.utils import platform
+from plyer import tts
+import threading
+import re
 import json
 import uuid
-#import time
+import time
 import logging
 Builder.load_file('smartportbt_kv.kv')
 
 
+class FloatInput(TextInput):
+
+    pat = re.compile('[^0-9]')
+
+    def insert_text(self, substring, from_undo=False):
+        pat = self.pat
+        if '.' in self.text:
+            s = re.sub(pat, '', substring)
+        else:
+            s = '.'.join([re.sub(pat, '', s) for s in substring.split('.', 1)])
+        return super(FloatInput, self).insert_text(s, from_undo=from_undo)
+
+
 class BluetoothExtendedError(Exception):
-        pass
+    pass
 
 
 class BluetoothExtended():
 
     def __init__(self, **kwargs):
-        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+        self.isConnected = False
+        if platform == 'win' or platform == 'linux' or platform == 'macosx':
             import bluetooth
             self.bluetooth = bluetooth
-        if platform  == 'android':
+        if platform == 'android':
             from jnius import autoclass
             self.bluetooth = autoclass('android.bluetooth.BluetoothAdapter')
             self.UUID = autoclass('java.util.UUID')
 
     def get_bonded_devices(self):
-        if platform  == 'android':
+        if platform == 'android':
             if self.bluetooth.getDefaultAdapter().isEnabled() == False:
                 raise BluetoothExtendedError(1, 'Bluetooth not enabled')
             return self.bluetooth.getDefaultAdapter().getBondedDevices().toArray()
 
     def scan_devices(self):
-        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+        if platform == 'win' or platform == 'linux' or platform == 'macosx':
             try:
                 devices = self.bluetooth.discover_devices(
                     duration=4,
@@ -61,11 +80,12 @@ class BluetoothExtended():
                 if error.args[0] == 19:
                     raise BluetoothExtendedError(1, 'Bluetooth not enabled')
                 else:
-                    raise BluetoothExtendedError(10, 'Unknown error: ' + error.args[1])
+                    raise BluetoothExtendedError(
+                        10, 'Unknown error: ' + error.args[1])
             return devices
 
     def connect(self, device):
-        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+        if platform == 'win' or platform == 'linux' or platform == 'macosx':
             port = 1
             self.socket = self.bluetooth.BluetoothSocket(self.bluetooth.RFCOMM)
             try:
@@ -74,32 +94,43 @@ class BluetoothExtended():
                 if error.args[0] == 112:
                     raise BluetoothExtendedError(2, 'Couldn\'t connect')
                 else:
-                    raise BluetoothExtendedError(10, 'Unknown error: ' + error.args[1])
+                    raise BluetoothExtendedError(
+                        10, 'Unknown error: ' + error.args[1])
             else:
-                self.socket.settimeout(0.1)
-        if platform  == 'android':
+                self.socket.settimeout(self.timeout)
+                self.isConnected = True
+        if platform == 'android':
             try:
                 self.socket = device.createRfcommSocketToServiceRecord(
                     self.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
                 self.socket.connect()
             except Exception as error:
                 raise BluetoothExtendedError(2, 'Couldn\'t connect')
+            else:
+                self.isConnected = True
+
+    def disconnect(self):
+        self.socket.close()
+        self.isConnected = False
 
     def read(self):
-        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+        if platform == 'win' or platform == 'linux' or platform == 'macosx':
             try:
                 c = self.socket.recv(1)
             except self.bluetooth.btcommon.BluetoothError as error:
                 if error.args[0] == 'timed out':
                     raise BluetoothExtendedError(3, 'Read timeout')
                 else:
-                    raise BluetoothExtendedError(10, 'Unknown error: ' + error.args[0])
+                    raise BluetoothExtendedError(
+                        10, 'Unknown error: ' + str(error.args))
             return c
-        if platform  == 'android':
-            if self.socket.getInputStream().available():
-                c = [0]
-                self.socket.read(c,0,1)
-                return c[0].to_bytes(1, 'big')       
+        if platform == 'android':
+            timestamp = time.clock_gettime(0)
+            while time.clock_gettime(0) - timestamp < self.timeout:
+                if self.socket.getInputStream().available():
+                    c = [0]
+                    self.socket.read(c, 0, 1)
+                    return c[0].to_bytes(1, 'big')
             raise BluetoothExtendedError(3, 'Read timeout')
 
 
@@ -144,6 +175,7 @@ class ScreenMonitors(Screen):
         screen_edit_name.ids.text_name.text = ''
         config[button.uuid] = monitor
         screen_manager.current = 'screen_edit_name'
+        
 
     def delete_monitor(self, obj):
         self.ids.list_config.remove_widget(self.popup.origin)
@@ -172,66 +204,53 @@ class ScreenMonitors(Screen):
 
     def show_screen_monitor(self, obj):
         screen_monitor.uuid = obj.uuid
-        screen_monitor.ids.sensor1.sensor_name = config[obj.uuid]['sensor1']['name']
-        screen_monitor.ids.sensor1.sensor_unit = config[obj.uuid]['sensor1']['unit']
-        screen_monitor.ids.sensor1.sensor_data_id = config[obj.uuid]['sensor1']['data_id']
-        screen_monitor.ids.sensor1.sensor_index = config[obj.uuid]['sensor1']['index']
-        screen_monitor.ids.sensor1.sensor_id = config[obj.uuid]['sensor1']['sensor_id']
-        screen_monitor.ids.sensor2.sensor_name = config[obj.uuid]['sensor2']['name']
-        screen_monitor.ids.sensor2.sensor_unit = config[obj.uuid]['sensor2']['unit']
-        screen_monitor.ids.sensor2.sensor_data_id = config[obj.uuid]['sensor2']['data_id']
-        screen_monitor.ids.sensor2.sensor_index = config[obj.uuid]['sensor2']['index']
-        screen_monitor.ids.sensor2.sensor_id = config[obj.uuid]['sensor2']['sensor_id']
-        screen_monitor.ids.sensor3.sensor_name = config[obj.uuid]['sensor3']['name']
-        screen_monitor.ids.sensor3.sensor_unit = config[obj.uuid]['sensor3']['unit']
-        screen_monitor.ids.sensor3.sensor_data_id = config[obj.uuid]['sensor3']['data_id']
-        screen_monitor.ids.sensor3.sensor_index = config[obj.uuid]['sensor3']['index']
-        screen_monitor.ids.sensor3.sensor_id = config[obj.uuid]['sensor3']['sensor_id']
-        screen_monitor.ids.sensor4.sensor_name = config[obj.uuid]['sensor4']['name']
-        screen_monitor.ids.sensor4.sensor_unit = config[obj.uuid]['sensor4']['unit']
-        screen_monitor.ids.sensor4.sensor_data_id = config[obj.uuid]['sensor4']['data_id']
-        screen_monitor.ids.sensor4.sensor_index = config[obj.uuid]['sensor4']['index']
-        screen_monitor.ids.sensor4.sensor_id = config[obj.uuid]['sensor4']['sensor_id']
-        screen_monitor.ids.sensor5.sensor_name = config[obj.uuid]['sensor5']['name']
-        screen_monitor.ids.sensor5.sensor_unit = config[obj.uuid]['sensor5']['unit']
-        screen_monitor.ids.sensor5.sensor_data_id = config[obj.uuid]['sensor5']['data_id']
-        screen_monitor.ids.sensor5.sensor_index = config[obj.uuid]['sensor5']['index']
-        screen_monitor.ids.sensor5.sensor_id = config[obj.uuid]['sensor5']['sensor_id']
-        screen_monitor.ids.sensor6.sensor_name = config[obj.uuid]['sensor6']['name']
-        screen_monitor.ids.sensor6.sensor_unit = config[obj.uuid]['sensor6']['unit']
-        screen_monitor.ids.sensor6.sensor_data_id = config[obj.uuid]['sensor6']['data_id']
-        screen_monitor.ids.sensor6.sensor_index = config[obj.uuid]['sensor6']['index']
-        screen_monitor.ids.sensor6.sensor_id = config[obj.uuid]['sensor6']['sensor_id']
+        for cont in range(1, 7):
+            screen_monitor.ids['sensor' +
+                               str(cont)].sensor_name = config[obj.uuid]['sensor' + str(cont)]['name']
+            screen_monitor.ids['sensor' +
+                               str(cont)].sensor_unit = config[obj.uuid]['sensor' + str(cont)]['unit']
+            screen_monitor.ids['sensor' + str(
+                cont)].sensor_data_id = config[obj.uuid]['sensor' + str(cont)]['data_id']
+            screen_monitor.ids['sensor' + str(
+                cont)].sensor_index = config[obj.uuid]['sensor' + str(cont)]['index']
+            screen_monitor.ids['sensor' + str(
+                cont)].sensor_id = config[obj.uuid]['sensor' + str(cont)]['sensor_id']
         screen_monitor.ids.title.title = obj.text
         screen_manager.current = 'screen_monitor'
 
     def list_bluetooth(self):
-        if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
-            try:
-                devices = bluetooth_extended.scan_devices()
-            except BluetoothExtendedError as error:
-                smartport_app.show_toast(error.args[1])
-                return
-            screen_list.ids.actionbar.title = 'Available devices'
-            for address, name in devices:
-                button = Factory.ButtonList(text=name)
-                button.device = {'name': name,'address': address}
-                button.bind(on_release=self.connect)
-                screen_list.ids.list.add_widget(button)
-        if platform  == 'android':
-            try:
-                devices = bluetooth_extended.get_bonded_devices()
-            except BluetoothExtendedError as error:
-                smartport_app.show_toast(error.args[1])
-                return
-            screen_list.ids.actionbar.title = 'Paired devices'
-            for device in devices:
-                button = Factory.ButtonList(text=device.getName())
-                button.device = device
-                button.bind(on_release=self.connect)
-                screen_list.ids.list.add_widget(button)
-        screen_list.previous = 'screen_monitors'
-        screen_manager.current = 'screen_list'
+        if bluetooth_extended.isConnected:
+            bluetooth_extended.disconnect()
+            self.ids.image_connection.icon = 'data/circle-red.png'
+            self.ids.button_connection.text = 'Connect'
+        else:
+            screen_list.ids.list.clear_widgets()
+            if platform == 'win' or platform == 'linux' or platform == 'macosx':
+                try:
+                    devices = bluetooth_extended.scan_devices()
+                except BluetoothExtendedError as error:
+                    smartport_app.show_toast(error.args[1])
+                    return
+                screen_list.ids.actionbar.title = 'Available devices'
+                for address, name in devices:
+                    button = Factory.ButtonList(text=name)
+                    button.device = {'name': name, 'address': address}
+                    button.bind(on_release=self.connect)
+                    screen_list.ids.list.add_widget(button)
+            if platform == 'android':
+                try:
+                    devices = bluetooth_extended.get_bonded_devices()
+                except BluetoothExtendedError as error:
+                    smartport_app.show_toast(error.args[1])
+                    return
+                screen_list.ids.actionbar.title = 'Paired devices'
+                for device in devices:
+                    button = Factory.ButtonList(text=device.getName())
+                    button.device = device
+                    button.bind(on_release=self.connect)
+                    screen_list.ids.list.add_widget(button)
+            screen_list.previous = 'screen_monitors'
+            screen_manager.current = 'screen_list'
 
     def connect(self, instance):
         try:
@@ -239,18 +258,20 @@ class ScreenMonitors(Screen):
         except BluetoothExtendedError as error:
             smartport_app.show_toast(error.args[1])
             self.ids.image_connection.icon = 'data/circle-red.png'
+            self.ids.button_connection.text = 'Connect'
         else:
             Clock.schedule_interval(read_bluetooth, 0.1)
             Clock.schedule_interval(screen_monitor.update_sensors, 0.1)
-            if platform  == 'win' or platform  == 'linux' or platform  ==  'macosx':
+            if platform == 'win' or platform == 'linux' or platform == 'macosx':
                 config['settings']['bt']['name'] = instance.device['name']
                 config['settings']['bt']['address'] = instance.device['address']
-            if platform  == 'android':
+            if platform == 'android':
                 config['settings']['bt']['name'] = instance.device.getName()
                 config['settings']['bt']['address'] = instance.device.getAddress()
             store['settings'] = config['settings']
             self.ids.image_connection.icon = 'data/circle-green.png'
-            screen_manager.current = 'screen_monitors'       
+            self.ids.button_connection.text = 'Disconnect'
+            screen_manager.current = 'screen_monitors'
 
 
 class ScreenMonitor(Screen):
@@ -264,39 +285,66 @@ class ScreenMonitor(Screen):
         screen_edit_sensor.sensor_id = obj.sensor_id
         screen_edit_sensor.sensor_data_id = obj.sensor_data_id
         screen_edit_sensor.sensor_index = obj.sensor_index
+        screen_edit_sensor.ids.alarm_check.active = config[self.uuid][obj.index]['alarm']
+        if config[self.uuid][obj.index]['alarm_condition'] == 'lower':
+            screen_edit_sensor.ids.lower.state = 'down'
+        if config[self.uuid][obj.index]['alarm_condition'] == 'equal':
+            screen_edit_sensor.ids.equal.state = 'down'
+        if config[self.uuid][obj.index]['alarm_condition'] == 'higher':
+            screen_edit_sensor.ids.higher.state = 'down'
+        screen_edit_sensor.ids.alarm_interval.text = str(
+            config[self.uuid][obj.index]['alarm_interval'])
+        screen_edit_sensor.ids.alarm_value.text = str(
+            config[self.uuid][obj.index]['alarm_value'])
+        screen_edit_sensor.ids.alarm_text.text = config[self.uuid][obj.index]['alarm_text']
         screen_manager.current = 'screen_edit_sensor'
 
     def update_sensors(self, ts):
-        try:
-            self.ids.sensor1.sensor_value = telemetry[self.ids.sensor1.sensor_id][
-                self.ids.sensor1.sensor_data_id][self.ids.sensor1.sensor_index]
-        except KeyError:
-            pass
-        try:
-            self.ids.sensor2.sensor_value = telemetry[self.ids.sensor2.sensor_id][
-                self.ids.sensor2.sensor_data_id][self.ids.sensor2.sensor_index]
-        except KeyError:
-            pass
-        try:
-            self.ids.sensor3.sensor_value = telemetry[self.ids.sensor3.sensor_id][
-                self.ids.sensor3.sensor_data_id][self.ids.sensor3.sensor_index]
-        except KeyError:
-            pass
-        try:
-            self.ids.sensor4.sensor_value = telemetry[self.ids.sensor4.sensor_id][
-                self.ids.sensor4.sensor_data_id][self.ids.sensor4.sensor_index]
-        except KeyError:
-            pass
-        try:
-            self.ids.sensor5.sensor_value = telemetry[self.ids.sensor5.sensor_id][
-                self.ids.sensor5.sensor_data_id][self.ids.sensor5.sensor_index]
-        except KeyError:
-            pass
-        try:
-            self.ids.sensor6.sensor_value = telemetry[self.ids.sensor6.sensor_id][
-                self.ids.sensor6.sensor_data_id][self.ids.sensor6.sensor_index]
-        except KeyError:
-            pass
+        for cont in range(1, 7):
+            index = 'sensor' + str(cont)
+            try:  # if sensor is in telemetry
+                value = telemetry[config[self.uuid][index]['sensor_id']][config[self.uuid]
+                                                                         [index]['data_id']][config[self.uuid][index]['index']]
+            except KeyError:
+                pass
+            else:  # update text and alarm
+                self.ids[index].sensor_value = value
+                if config[self.uuid][index]['alarm']:
+                    condition = {'higher': config[self.uuid][index]['alarm_condition'] == 'higher' and self.ids[index].sensor_value > config[self.uuid][index]['alarm_value'],
+                                 'equal': config[self.uuid][index]['alarm_condition'] == 'equal' and self.ids[index].sensor_value == config[self.uuid][index]['alarm_value'],
+                                 'lower': config[self.uuid][index]['alarm_condition'] == 'lower' and self.ids[index].sensor_value < config[self.uuid][index]['alarm_value']
+                                 }
+                    if condition['higher'] or condition['equal'] or condition['lower']:
+                        try:
+                            screen_monitor.ids[index].alarm_voice.is_triggered
+                        except AttributeError:
+                            screen_monitor.ids[index].alarm_voice = Clock.create_trigger(
+                                screen_monitor.alarms, config[screen_monitor.uuid][index]['alarm_interval'])
+                        try:
+                            screen_monitor.ids[index].alarm_blink.is_triggered
+                        except AttributeError:
+                            screen_monitor.ids[index].alarm_blink = Clock.create_trigger(
+                                screen_monitor.alarms, 0.5)
+                        if not screen_monitor.ids[index].alarm_voice.is_triggered:
+                            screen_monitor.ids[index].alarm_voice()
+                            global text_voice
+                            text_voice = config[self.uuid][index]['alarm_text']
+                            text_voice = text_voice.replace(
+                                '%s', config[self.uuid][index]['name'])
+                            text_voice = text_voice.replace('%v', str(value))
+                            text_voice = text_voice.replace(
+                                '%u', config[self.uuid][index]['unit'])
+                            event_voice.set()
+                        if not screen_monitor.ids[index].alarm_blink.is_triggered:
+                            screen_monitor.ids[index].alarm_blink()
+                            color = self.ids[index].background_color
+                            self.ids[index].background_color = (
+                                1, int(not color[1]), int(not color[2]), 1)
+                    else:
+                        self.ids[index].background_color = [1, 1, 1, 1]
+
+    def alarms(self, interval):
+        pass
 
 
 class ScreenEditName(Screen):
@@ -319,6 +367,13 @@ class ScreenEditSensor(Screen):
 
     def show_sensor_list(self):
         screen_list.ids.list.clear_widgets()
+        button = Factory.ButtonList(text='')
+        button.sensor_id = 0
+        button.sensor_data_id = 0
+        button.sensor_index = 0
+        button.sensor_unit = ''
+        button.bind(on_release=self.select_sensor)
+        screen_list.ids.list.add_widget(button)
         for sensor_id in telemetry.keys():
             if not sensor_id == 'sensor_id':
                 for data_id in telemetry[sensor_id].keys():
@@ -352,6 +407,29 @@ class ScreenEditSensor(Screen):
         config[screen_monitor.uuid][self.sensor.index]['data_id'] = self.sensor_data_id
         config[screen_monitor.uuid][self.sensor.index]['unit'] = self.sensor_unit
         config[screen_monitor.uuid][self.sensor.index]['index'] = self.sensor_index
+        config[screen_monitor.uuid][self.sensor.index]['alarm'] = self.ids.alarm_check.active
+        if self.ids.lower.state == 'down':
+            config[screen_monitor.uuid][self.sensor.index]['alarm_condition'] = 'lower'
+        if self.ids.equal.state == 'down':
+            config[screen_monitor.uuid][self.sensor.index]['alarm_condition'] = 'equal'
+        if self.ids.higher.state == 'down':
+            config[screen_monitor.uuid][self.sensor.index]['alarm_condition'] = 'higher'
+        try:
+            config[screen_monitor.uuid][self.sensor.index]['alarm_interval'] = int(
+                self.ids.alarm_interval.text)
+        except ValueError:
+            config[screen_monitor.uuid][self.sensor.index]['alarm_interval'] = 15
+        screen_monitor.ids[self.sensor.index].alarm_voice = Clock.create_trigger(
+            screen_monitor.alarms, config[screen_monitor.uuid][self.sensor.index]['alarm_interval'])
+        screen_monitor.ids[self.sensor.index].alarm_blink = Clock.create_trigger(
+            screen_monitor.alarms, 0.5)
+        try:
+            config[screen_monitor.uuid][self.sensor.index]['alarm_value'] = int(
+                self.ids.alarm_value.text)
+        except ValueError:
+            config[screen_monitor.uuid][self.sensor.index]['alarm_value'] = 0
+        config[screen_monitor.uuid][self.sensor.index]['alarm_text'] = self.ids.alarm_text.text
+        
         store[screen_monitor.uuid] = config[screen_monitor.uuid]
         self.sensor.sensor_name = self.sensor_name
         self.sensor.sensor_id = self.sensor_id
@@ -390,36 +468,39 @@ def read_bluetooth(obj):
     try:
         while True:
             c = bluetooth_extended.read()
+            if c == 0x7E:
+                data = []
             if c == 0x7D:
                 data.append((int.from_bytes(bluetooth_extended.read(), 'big')
-                            ^ 0x20).to_bytes(1, 'big'))
+                             ^ 0x20).to_bytes(1, 'big'))
             else:
                 data.append(c)
-    except BluetoothExtendedError:
-        if len(data) == 8:
+            if len(data) == 10:
+                raise BluetoothExtendedError
+    except BluetoothExtendedError: # timed out or packet complete
+        if len(data) == 10:
             crc = 0
-            for c in data:
-                crc += int.from_bytes(c, "big")
+            for c in range(2,10):
+                crc += int.from_bytes(data[c], "big")
                 crc += crc >> 8
                 crc &= 0x00FF
             crc = 0xFF - crc
             if crc == 0:
+                sensor_id = int.from_bytes(data[1], "big")
+                frame_id = int.from_bytes(data[2], "big")
                 data_id = int.from_bytes(
-                    data[2], "big") << 8 | int.from_bytes(data[1], "big")
-                value = int.from_bytes(data[6], "big") << 24 | int.from_bytes(
-                    data[5], "big") << 16 | int.from_bytes(data[4], "big") << 8 | int.from_bytes(data[3], "big")
+                    data[4], "big") << 8 | int.from_bytes(data[3], "big")
+                value = int.from_bytes(data[8], "big") << 24 | int.from_bytes(
+                    data[7], "big") << 16 | int.from_bytes(data[6], "big") << 8 | int.from_bytes(data[5], "big")
                 sensor_data = get_sensor_data(data_id)
                 if sensor_data:
                     for key in sensor_data.keys():
-                        if telemetry['sensor_id'] not in telemetry:
-                            telemetry[telemetry['sensor_id']] = {}
-                        if data_id not in telemetry[telemetry['sensor_id']]:
-                            telemetry[telemetry['sensor_id']][data_id] = {}
-                        telemetry[telemetry['sensor_id']][data_id][key] = (
+                        if sensor_id not in telemetry:
+                            telemetry[sensor_id] = {}
+                        if data_id not in telemetry[sensor_id]:
+                            telemetry[sensor_id][data_id] = {}
+                        telemetry[sensor_id][data_id][key] = (
                             value >> sensor_data[key]['shift']) * sensor_data[key]['mult']
-            if len(data) == 2:
-                if data[0] == 0x7E:
-                    telemetry['sensor_id'] = data[1]
 
 def get_sensor_data(data_id):
     data = {
@@ -475,8 +556,19 @@ def get_sensor_data(data_id):
         if data_id in key:
             return data[key]
 
+def do_speak(event_voice):
+    global text_voice
+    while True:
+        event_voice.wait()
+        tts.speak(text_voice)
+        event_voice.clear()
 
+text_voice = ''
 smartport_app = SmartportApp(title='Smartport BT')
+# config = {<uuid>:{type:<>, name:<>, sensor1:{name:<>,sensor_id:<>,data_id:<>,index:<>,unit:<>,alarm:<>,condition:<>...}
+#          settings:{bt{name:<>,address:<>}}}
+# telemetry = {sensor_id: <last poll sensorId>,
+#             <sensorId>: {<dataId>: {<index>: <value>, <index>: <value>}}}
 telemetry = {}
 telemetry['sensor_id'] = 0
 bt = {
@@ -491,17 +583,88 @@ sensor = {
     'sensor_id': 0,
     'data_id': 0,
     'index': 0,
-    'unit': ''
+    'unit': '',
+    'alarm': False,
+    'alarm_condition': '',
+    'alarm_interval': 0,
+    'alarm_value': 0,
+    'alarm_text': ''
 }
 monitor = {
     'type': 'monitor',
     'name': '',
-    'sensor1': sensor,
-    'sensor2': sensor,
-    'sensor3': sensor,
-    'sensor4': sensor,
-    'sensor5': sensor,
-    'sensor6': sensor
+    'sensor1': {
+    'name': '',
+    'sensor_id': 0,
+    'data_id': 0,
+    'index': 0,
+    'unit': '',
+    'alarm': False,
+    'alarm_condition': '',
+    'alarm_interval': 0,
+    'alarm_value': 0,
+    'alarm_text': ''
+    },
+    'sensor2': {
+    'name': '',
+    'sensor_id': 0,
+    'data_id': 0,
+    'index': 0,
+    'unit': '',
+    'alarm': False,
+    'alarm_condition': '',
+    'alarm_interval': 0,
+    'alarm_value': 0,
+    'alarm_text': ''
+    },
+    'sensor3': {
+    'name': '',
+    'sensor_id': 0,
+    'data_id': 0,
+    'index': 0,
+    'unit': '',
+    'alarm': False,
+    'alarm_condition': '',
+    'alarm_interval': 0,
+    'alarm_value': 0,
+    'alarm_text': ''
+    },
+    'sensor4': {
+    'name': '',
+    'sensor_id': 0,
+    'data_id': 0,
+    'index': 0,
+    'unit': '',
+    'alarm': False,
+    'alarm_condition': '',
+    'alarm_interval': 0,
+    'alarm_value': 0,
+    'alarm_text': ''
+    },
+    'sensor5': {
+    'name': '',
+    'sensor_id': 0,
+    'data_id': 0,
+    'index': 0,
+    'unit': '',
+    'alarm': False,
+    'alarm_condition': '',
+    'alarm_interval': 0,
+    'alarm_value': 0,
+    'alarm_text': ''
+    },
+    'sensor6': {
+    'name': '',
+    'sensor_id': 0,
+    'data_id': 0,
+    'index': 0,
+    'unit': '',
+    'alarm': False,
+    'alarm_condition': '',
+    'alarm_interval': 0,
+    'alarm_value': 0,
+    'alarm_text': ''
+    }
 }
 config = {
     'settings': settings
@@ -532,5 +695,12 @@ for element in store.keys():
             screen_monitors.ids.list_config.add_widget(button)
 
 bluetooth_extended = BluetoothExtended()
+bluetooth_extended.timeout = 0.003
 
-smartport_app.run()
+event_voice = threading.Event()
+thread_voice = threading.Thread(
+    name='thread_voice', target=do_speak, args=(event_voice,), daemon=True)
+thread_voice.start()
+
+if __name__ == "__main__":
+    smartport_app.run()
