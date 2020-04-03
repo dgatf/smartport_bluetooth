@@ -366,30 +366,30 @@ class ScreenMonitor(Screen):
                                      }
                         if condition['higher'] or condition['equal'] or condition['lower']:
                             try:
-                                screen_monitor.ids[index].alarm_voice.is_triggered
+                                screen_monitor.ids[button_index].alarm_voice.is_triggered
                             except AttributeError:
-                                screen_monitor.ids[index].alarm_voice = Clock.create_trigger(
-                                    screen_monitor.alarms, config[screen_monitor.uuid][index]['alarm_interval'])
+                                screen_monitor.ids[button_index].alarm_voice = Clock.create_trigger(
+                                    screen_monitor.alarms, config[screen_monitor.uuid][button_index]['alarm_interval'])
                             try:
-                                screen_monitor.ids[index].alarm_blink.is_triggered
+                                screen_monitor.ids[button_index].alarm_blink.is_triggered
                             except AttributeError:
-                                screen_monitor.ids[index].alarm_blink = Clock.create_trigger(
+                                screen_monitor.ids[button_index].alarm_blink = Clock.create_trigger(
                                     screen_monitor.alarms, 0.5)
-                            if not screen_monitor.ids[index].alarm_voice.is_triggered:
-                                screen_monitor.ids[index].alarm_voice()
+                            if not screen_monitor.ids[button_index].alarm_voice.is_triggered:
+                                screen_monitor.ids[button_index].alarm_voice()
                                 global text_voice
-                                text_voice = config[self.uuid][index]['alarm_text']
+                                text_voice = config[self.uuid][button_index]['alarm_text']
                                 text_voice = text_voice.replace(
-                                    '%s', config[self.uuid][index]['name'])
+                                    '%s', config[self.uuid][button_index]['name'])
                                 text_voice = text_voice.replace(
                                     '%v', str(value))
                                 text_voice = text_voice.replace(
-                                    '%u', config[self.uuid][index]['unit'])
+                                    '%u', config[self.uuid][button_index]['unit'])
                                 event_voice.set()
-                            if not screen_monitor.ids[index].alarm_blink.is_triggered:
-                                screen_monitor.ids[index].alarm_blink()
-                                color = self.ids[index].background_color
-                                self.ids[index].background_color = (
+                            if not screen_monitor.ids[button_index].alarm_blink.is_triggered:
+                                screen_monitor.ids[button_index].alarm_blink()
+                                color = self.ids[button_index].background_color
+                                self.ids[button_index].background_color = (
                                     1, int(not color[1]), int(not color[2]), 1)
                         else:
                             self.ids[button_index].background_color = [
@@ -459,7 +459,8 @@ class ScreenEditSensor(Screen):
         config[screen_monitor.uuid][self.sensor.index]['data_id'] = self.sensor_data_id
         config[screen_monitor.uuid][self.sensor.index]['unit'] = self.sensor_unit
         config[screen_monitor.uuid][self.sensor.index]['index'] = self.sensor_index
-        config[screen_monitor.uuid][self.sensor.index]['multiplier'] = float(self.ids.multiplier.text)
+        config[screen_monitor.uuid][self.sensor.index]['multiplier'] = float(
+            self.ids.multiplier.text)
         if config[screen_monitor.uuid][self.sensor.index]['index'] == 2:
             if self.ids.sum.state == 'down':
                 config[screen_monitor.uuid][self.sensor.index]['value'] = 'sum'
