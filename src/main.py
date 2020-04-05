@@ -25,7 +25,8 @@ from kivy.clock import Clock
 from kivy.utils import platform
 from plyer import tts
 import threading
-import re
+import re # floatinput
+import struct
 import json
 import uuid
 import time
@@ -113,10 +114,11 @@ class BluetoothExtended():
         self.socket.close()
         self.isConnected = False
 
-    def read(self):
+    def read(self, lenght):
         if platform == 'win' or platform == 'linux' or platform == 'macosx':
+            buffer = bytearray(0) 
             try:
-                c = self.socket.recv(1)
+                buffer = self.socket.recv(20)
             except self.bluetooth.btcommon.BluetoothError as error:
                 if error.args[0] == 'timed out':
                     raise BluetoothExtendedError(3, 'Read timeout')
@@ -127,15 +129,12 @@ class BluetoothExtended():
                 else:
                     raise BluetoothExtendedError(
                         10, 'Unknown error: ' + str(error.args))
-            return c
+            return buffer
+            
         if platform == 'android':
-            timestamp = time.clock_gettime(0)
-            while time.clock_gettime(0) - timestamp < self.timeout:
-                if self.socket.getInputStream().available():
-                    c = [0]
-                    self.socket.read(c, 0, 1)
-                    return c[0].to_bytes(1, 'big')
-            raise BluetoothExtendedError(3, 'Read timeout')
+            buffer = [0] * 20
+            lenght = self.socket.read(buffer, 0, 20)
+            return bytearray(buffer[0:lenght])
 
 
 class LongpressButton(Button):
@@ -525,20 +524,52 @@ class SmartportApp(App):
         return screen_manager
 
 
+def check_crc(packet):
+    crc = 0
+    for c in range(2, 10):
+        crc += packet[c]
+        crc += crc >> 8
+        crc &= 0x00FF
+    crc = 0xFF - crc
+    if crc == 0:
+        return True
+    return False
+
+
+def add_telemetry(packet):
+    sensor_id = packet[1]
+    frame_id = packet[2]
+    data_id = packet[4] << 8 | packet[3]
+    value = packet[8] << 8 << 24 | packet[7] << 16 | packet[6] << 8 | packet[5]
+    if frame_id == 0x10:
+        sensor_data = get_sensor_data(data_id)
+        # logging.info('data: {} {} {} {}'.format(sensor_id, frame_id, data_id, value))
+        if sensor_data:
+            for key in sensor_data.keys():
+                if sensor_id not in telemetry:
+                    telemetry[sensor_id] = {}
+                if data_id not in telemetry[sensor_id]:
+                    if key == 2:
+                        telemetry[sensor_id][data_id] = {2: {}}
+                    else:
+                        telemetry[sensor_id][data_id] = {}
+                if key == 2:
+                    telemetry[sensor_id][data_id][2][value & 0x0000000F] = (
+                        (value & 0x000FFF00) >> 8) * sensor_data[2]['mult']
+                    telemetry[sensor_id][data_id][2][(
+                        value & 0x0000000F) + 1] = (value >> 20) * sensor_data[2]['mult']
+                elif key == 0:
+                    telemetry[sensor_id][data_id][0] = (
+                        value & 0x0000FFFF) * sensor_data[key]['mult']
+                elif key == 1:
+                    telemetry[sensor_id][data_id][1] = (
+                        value >> 16) * sensor_data[key]['mult']
+            # logging.info('telemetry: {}'.format(telemetry))
+
+
 def read_bluetooth(obj):
-    data = []
     try:
-        while True:
-            c = bluetooth_extended.read()
-            if c == 0x7E:
-                data = []
-            if c == 0x7D:
-                data.append((int.from_bytes(bluetooth_extended.read(), 'big')
-                             ^ 0x20).to_bytes(1, 'big'))
-            else:
-                data.append(c)
-            if len(data) == 10:
-                raise BluetoothExtendedError(6, 'Packet received')
+        buffer = bluetooth_extended.read(20)
     except BluetoothExtendedError as error:
         if error.args[0] == 4 or error.args[0] == 5:
             smartport_app.show_toast(error.args[1])
@@ -547,44 +578,21 @@ def read_bluetooth(obj):
             bluetooth_extended.disconnect()
             screen_monitors.ids.image_connection.icon = 'data/circle-red.png'
             screen_monitors.ids.button_connection.text = 'Connect'
-        elif error.args[0] == 3 or error.args[0] == 6:
-            if len(data) == 10:
-                crc = 0
-                for c in range(2, 10):
-                    crc += int.from_bytes(data[c], "big")
-                    crc += crc >> 8
-                    crc &= 0x00FF
-                crc = 0xFF - crc
-                if crc == 0:
-                    sensor_id = int.from_bytes(data[1], "big")
-                    frame_id = int.from_bytes(data[2], "big")
-                    data_id = int.from_bytes(
-                        data[4], "big") << 8 | int.from_bytes(data[3], "big")
-                    value = int.from_bytes(data[8], "big") << 24 | int.from_bytes(
-                        data[7], "big") << 16 | int.from_bytes(data[6], "big") << 8 | int.from_bytes(data[5], "big")
-                    sensor_data = get_sensor_data(data_id)
-                    if sensor_data:
-                        for key in sensor_data.keys():
-                            if sensor_id not in telemetry:
-                                telemetry[sensor_id] = {}
-                            if data_id not in telemetry[sensor_id]:
-                                if key == 2:
-                                    telemetry[sensor_id][data_id] = {2: {}}
-                                else:
-                                    telemetry[sensor_id][data_id] = {}
-                            if key == 2:
-                                telemetry[sensor_id][data_id][2][value & 0x0000000F] = (
-                                    (value & 0x000FFF00) >> 8) * sensor_data[2]['mult']
-                                telemetry[sensor_id][data_id][2][(
-                                    value & 0x0000000F) + 1] = (value >> 20) * sensor_data[2]['mult']
-                            elif key == 0:
-                                telemetry[sensor_id][data_id][0] = (
-                                    value & 0x0000FFFF) * sensor_data[key]['mult']
-                            elif key == 1:
-                                telemetry[sensor_id][data_id][1] = (
-                                    value >> 16) * sensor_data[key]['mult']
-        else:
+        if error.args[0] == 10:
             raise error
+    else:
+        global packet
+        for i in range(len(buffer)):
+            if buffer[i] == 0x7E:
+                packet = []
+            if buffer[i] == 0x7D:
+                i += 1
+                packet.append(buffer[i] ^ 0x20)
+            else:
+                packet.append(buffer[i])
+            if len(packet) == 10:
+                if check_crc(packet):
+                    add_telemetry(packet)
 
 
 def get_sensor_data(data_id):
@@ -803,6 +811,7 @@ event_voice = threading.Event()
 thread_voice = threading.Thread(
     name='thread_voice', target=do_speak, args=(event_voice,), daemon=True)
 thread_voice.start()
+packet = []
 
 if __name__ == "__main__":
     smartport_app.run()

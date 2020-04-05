@@ -29,6 +29,12 @@ Install [apk](bin/smartportbt_unsigned.apk)
 
 Pair the bluetooth device before launching the app
 
+## Usage
+
+In Opentx go to *Radio settings -> Hardware -> SP power -> ON*
+
+Attach bluetooth device to radio smartport
+
 
 <p align="center"><img src="./images/models.png" width="300"><br>
 
