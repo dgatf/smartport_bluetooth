@@ -24,6 +24,7 @@ from kivy.storage.jsonstore import JsonStore
 from kivy.clock import Clock
 from kivy.utils import platform
 from plyer import tts
+from functools import partial
 import threading
 import re # floatinput
 import struct
@@ -33,6 +34,13 @@ import time
 import logging
 Builder.load_file('smartportbt_kv.kv')
 
+if platform == 'win' or platform == 'linux' or platform == 'macosx':
+    import bluetooth
+    from gattlib import DiscoveryService, GATTRequester, GATTResponse
+if platform == 'android':
+    from jnius import autoclass
+    bluetooth = autoclass('android.bluetooth.BluetoothAdapter')
+    UUID = autoclass('java.util.UUID')
 
 class FloatInput(TextInput):
 
@@ -51,28 +59,43 @@ class BluetoothExtendedError(Exception):
     pass
 
 
+if platform == 'win' or platform == 'linux' or platform == 'macosx':
+    class DeviceBle(GATTRequester):
+
+        """def __init__(self, address, **kwargs):
+            self.del_buffer = False
+            self.buffer = bytearray(0)"""
+
+        def init(self):
+            self.del_buffer = False
+            self.buffer = bytearray(0)
+        
+        def on_notification(self, handle, data):
+            if self.del_buffer:
+                self.buffer = bytearray(0)
+                self.del_buffer = False
+            self.buffer += data[3:len(data)]
+
+
 class BluetoothExtended():
 
     def __init__(self, **kwargs):
-        self.isConnected = False
-        if platform == 'win' or platform == 'linux' or platform == 'macosx':
-            import bluetooth
-            self.bluetooth = bluetooth
-        if platform == 'android':
-            from jnius import autoclass
-            self.bluetooth = autoclass('android.bluetooth.BluetoothAdapter')
-            self.UUID = autoclass('java.util.UUID')
+        self.isConnected = False 
+        self.root = True       
 
     def get_bonded_devices(self):
         if platform == 'android':
-            if self.bluetooth.getDefaultAdapter().isEnabled() == False:
+            if bluetooth.getDefaultAdapter().isEnabled() == False:
                 raise BluetoothExtendedError(1, 'Bluetooth not enabled')
-            return self.bluetooth.getDefaultAdapter().getBondedDevices().toArray()
+            return bluetooth.getDefaultAdapter().getBondedDevices().toArray()
 
     def scan_devices(self):
         if platform == 'win' or platform == 'linux' or platform == 'macosx':
+            root = True
+            devices = {'classic': [], 'ble': []}
+            # bt classic
             try:
-                devices = self.bluetooth.discover_devices(
+                devices['classic'] = bluetooth.discover_devices(
                     duration=4,
                     lookup_names=True,
                     flush_cache=True,
@@ -83,32 +106,67 @@ class BluetoothExtended():
                 else:
                     raise BluetoothExtendedError(
                         10, 'Unknown error: ' + error.args[1])
-            return devices
-
-    def connect(self, device):
-        if platform == 'win' or platform == 'linux' or platform == 'macosx':
-            port = 1
-            self.socket = self.bluetooth.BluetoothSocket(self.bluetooth.RFCOMM)
+                return
+            # bt ble
+            service = DiscoveryService("hci0")
             try:
-                self.socket.connect((device['address'], port))
-            except self.bluetooth.btcommon.BluetoothError as error:
-                if error.args[0] == 112:
-                    raise BluetoothExtendedError(2, 'Couldn\'t connect')
-                else:
-                    raise BluetoothExtendedError(
-                        10, 'Unknown error: ' + error.args[1])
+                devices_ble = service.discover(2)
+            except RuntimeError as error:
+                root = False
             else:
-                self.socket.settimeout(self.timeout)
+                for key in devices_ble:
+                    devices['ble'].append((key, devices_ble[key]))
+            return devices, root
+
+    def connect(self, address, type):
+        if platform == 'win' or platform == 'linux' or platform == 'macosx':
+            if type == 'classic':
+                port = 1
+                self.socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+                try:
+                    self.socket.connect((address, port))
+                except bluetooth.btcommon.BluetoothError as error:
+                    if error.args[0] == 112:
+                        raise BluetoothExtendedError(2, 'Couldn\'t connect')
+                    else:
+                        raise BluetoothExtendedError(
+                            10, 'Unknown error: ' + error.args[1])
+                else:
+                    self.socket.settimeout(self.timeout)
+                    self.type = 'classic'
+                    self.isConnected = True
+            if type == 'ble':
+                self.type = 'ble'
+                self.device = DeviceBle(address)
+                self.device.init()
                 self.isConnected = True
         if platform == 'android':
-            try:
-                self.socket = device.createRfcommSocketToServiceRecord(
-                    self.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
-                self.socket.connect()
-            except Exception as error:
-                raise BluetoothExtendedError(2, 'Couldn\'t connect')
-            else:
-                self.isConnected = True
+            devices = bluetooth.getDefaultAdapter().getBondedDevices().toArray()
+            if not bluetooth.getDefaultAdapter().isEnabled():
+                raise BluetoothExtendedError(5, 'Bluetooth not available')
+            for device in devices:
+                logging.info('{} {}'.format(device.getType(), device.getName()))
+                if device.getAddress() == address:
+                    logging.info('Connecting')
+                    if device.getType() == 1:
+                        try:
+                            self.socket = device.createRfcommSocketToServiceRecord(
+                                UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"))
+                            self.socket.connect()
+                        except Exception as error:
+                            logging.info(error.args)
+                            raise BluetoothExtendedError(2, 'Couldn\'t connect')
+                        else:
+                            self.isConnected = True
+                            return
+                    if device.getType() == 2:
+                        raise BluetoothExtendedError(5, 'BLE not implemented')
+                        # bluetoothGatt = device.connectGatt(this, False, gattCallback)
+        raise BluetoothExtendedError(2, 'Couldn\'t connect')
+
+    #def gattCallback(self):
+    #    pass
+
 
     def disconnect(self):
         self.socket.close()
@@ -116,21 +174,26 @@ class BluetoothExtended():
 
     def read(self, lenght):
         if platform == 'win' or platform == 'linux' or platform == 'macosx':
-            buffer = bytearray(0) 
-            try:
-                buffer = self.socket.recv(20)
-            except self.bluetooth.btcommon.BluetoothError as error:
-                if error.args[0] == 'timed out':
-                    raise BluetoothExtendedError(3, 'Read timeout')
-                if error.args[0] == 103:
-                    raise BluetoothExtendedError(4, 'Software disconnection')
-                if error.args[0] == 11:
-                    raise BluetoothExtendedError(5, 'Bluetooth not available')
-                else:
-                    raise BluetoothExtendedError(
-                        10, 'Unknown error: ' + str(error.args))
-            return buffer
-            
+            if self.type == 'classic':
+                buffer = bytearray(0) 
+                try:
+                    buffer = self.socket.recv(20)
+                except bluetooth.btcommon.BluetoothError as error:
+                    if error.args[0] == 'timed out':
+                        raise BluetoothExtendedError(3, 'Read timeout')
+                    if error.args[0] == 103:
+                        raise BluetoothExtendedError(4, 'Software disconnection')
+                    if error.args[0] == 11:
+                        raise BluetoothExtendedError(5, 'Bluetooth not available')
+                    else:
+                        raise BluetoothExtendedError(
+                            10, 'Unknown error: ' + str(error.args))
+                return buffer
+            if self.type == 'ble':
+                if self.device.del_buffer == False:
+                    self.device.del_buffer = True
+                    return self.device.buffer
+                return bytearray(0)
         if platform == 'android':
             buffer = [0] * 20
             lenght = self.socket.read(buffer, 0, 20)
@@ -216,63 +279,99 @@ class ScreenMonitors(Screen):
         screen_monitor.ids.title.title = obj.text
         screen_manager.current = 'screen_monitor'
 
-    def list_bluetooth(self):
+    def connect(self):
         if bluetooth_extended.isConnected:
-            self.timer_read.cancel()
-            self.timer_update.cancel()
+            try:
+                self.timer_read.cancel()
+                self.timer_update.cancel()
+            except:
+                pass
             bluetooth_extended.disconnect()
             self.ids.image_connection.icon = 'data/circle-red.png'
             self.ids.button_connection.text = 'Connect'
         else:
-            screen_list.ids.list.clear_widgets()
-            if platform == 'win' or platform == 'linux' or platform == 'macosx':
-                try:
-                    devices = bluetooth_extended.scan_devices()
-                except BluetoothExtendedError as error:
-                    smartport_app.show_toast(error.args[1])
-                    return
-                screen_list.ids.actionbar.title = 'Available devices'
-                for address, name in devices:
-                    button = Factory.ButtonList(text=name)
-                    button.device = {'name': name, 'address': address}
-                    button.bind(on_release=self.connect)
-                    screen_list.ids.list.add_widget(button)
-            if platform == 'android':
-                try:
-                    devices = bluetooth_extended.get_bonded_devices()
-                except BluetoothExtendedError as error:
-                    smartport_app.show_toast(error.args[1])
-                    return
-                screen_list.ids.actionbar.title = 'Paired devices'
-                for device in devices:
-                    button = Factory.ButtonList(text=device.getName())
-                    button.device = device
-                    button.bind(on_release=self.connect)
-                    screen_list.ids.list.add_widget(button)
-            screen_list.previous = 'screen_monitors'
-            screen_manager.current = 'screen_list'
+            try:
+                bluetooth_extended.connect(config['settings']['bt']['address'], config['settings']['bt']['type'])
+            except BluetoothExtendedError as error:
+                Clock.schedule_once(partial(smartport_app.show_toast, error.args[1]), 1)
+            except KeyError:
+                smartport_app.show_toast('Select bluetooth device')
+            else:
+                self.timer_read = Clock.schedule_interval(read_bluetooth, 0.01)
+                self.timer_update = Clock.schedule_interval(
+                    screen_monitor.update_sensors, 0.02)
+                self.ids.image_connection.icon = 'data/circle-green.png'
+                self.ids.button_connection.text = 'Disconnect'
+                screen_manager.current = 'screen_monitors'
 
-    def connect(self, instance):
+    def show_screen_settings(self):
         try:
-            bluetooth_extended.connect(instance.device)
-        except BluetoothExtendedError as error:
-            smartport_app.show_toast(error.args[1])
-            self.ids.image_connection.icon = 'data/circle-red.png'
-            self.ids.button_connection.text = 'Connect'
-        else:
-            self.timer_read = Clock.schedule_interval(read_bluetooth, 0.01)
-            self.timer_update = Clock.schedule_interval(
-                screen_monitor.update_sensors, 0.02)
-            if platform == 'win' or platform == 'linux' or platform == 'macosx':
-                config['settings']['bt']['name'] = instance.device['name']
-                config['settings']['bt']['address'] = instance.device['address']
-            if platform == 'android':
-                config['settings']['bt']['name'] = instance.device.getName()
-                config['settings']['bt']['address'] = instance.device.getAddress()
-            store['settings'] = config['settings']
-            self.ids.image_connection.icon = 'data/circle-green.png'
-            self.ids.button_connection.text = 'Disconnect'
-            screen_manager.current = 'screen_monitors'
+            screen_settings.ids.device.text = config['settings']['bt']['name']
+        except Exception as e:
+            print(e.args)
+        screen_manager.current = 'screen_settings'
+
+
+class ScreenSettings(Screen):
+    
+    def list_bluetooth(self):
+        screen_list.ids.list.clear_widgets()
+        if platform == 'win' or platform == 'linux' or platform == 'macosx':
+            try:
+                devices, root = bluetooth_extended.scan_devices()
+            except BluetoothExtendedError as error:
+                Clock.schedule_once(partial(smartport_app.show_toast, error.args[1]), 1)
+                return
+            screen_list.ids.actionbar.title = 'Available devices'
+            screen_list.previous = 'screen_settings'
+            screen_manager.current = 'screen_list'
+            if root == False:
+                Clock.schedule_once(partial(smartport_app.show_toast, 'Run as administrator to scan for ble devices'), 1)
+            for key in devices:
+                for address, name in devices[key]:
+                    button = Factory.ButtonList(text=name)
+                    button.device_name = name or address
+                    button.device_address = address
+                    button.device_type = key
+                    button.bind(on_release=self.select_device)
+                    screen_list.ids.list.add_widget(button)
+        if platform == 'android':
+            try:
+                devices = bluetooth_extended.get_bonded_devices()
+            except BluetoothExtendedError as error:
+                smartport_app.show_toast(error.args[1])
+                return
+            screen_list.ids.actionbar.title = 'Paired devices'
+            screen_list.previous = 'screen_settings'
+            screen_manager.current = 'screen_list'
+            for device in devices:
+                button = Factory.ButtonList(text=device.getName())
+                button.device_name = device.getName()
+                button.device_address = device.getAddress()
+                button.device_type = 'android'
+                button.bind(on_release=self.select_device)
+                screen_list.ids.list.add_widget(button)
+
+    def select_device(self, instance):
+        self.ids.device.device_name = instance.device_name
+        self.ids.device.device_address = instance.device_address
+        self.ids.device.device_type = instance.device_type
+        self.ids.device.text = instance.device_name
+        screen_list.ids.list.clear_widgets()
+        screen_manager.current = 'screen_settings'
+
+    def update_settings(self):
+        try:
+            config['settings']['bt']['name'] = self.ids.device.device_name
+            config['settings']['bt']['address'] = self.ids.device.device_address
+            config['settings']['bt']['type'] = self.ids.device.device_type
+        except:
+            pass
+        store['settings'] = config['settings']
+        screen_manager.current = 'screen_monitors'
+
+    def show_screen_monitors(self):
+        screen_manager.current = 'screen_monitors'
 
 
 class ScreenMonitor(Screen):
@@ -511,7 +610,7 @@ class ScreenList(Screen):
 
 class SmartportApp(App):
 
-    def show_toast(self, message):
+    def show_toast(self, message, *args):
         self.toast = Factory.Toast()
         self.toast.ids.label.text = message
         Clock.schedule_interval(self.close_toast, 3)
@@ -584,15 +683,17 @@ def read_bluetooth(obj):
         global packet
         for i in range(len(buffer)):
             if buffer[i] == 0x7E:
-                packet = []
-            if buffer[i] == 0x7D:
-                i += 1
-                packet.append(buffer[i] ^ 0x20)
-            else:
-                packet.append(buffer[i])
-            if len(packet) == 10:
-                if check_crc(packet):
-                    add_telemetry(packet)
+                packet = [0x7E]
+            elif len(packet) > 0:
+                if buffer[i] == 0x7D:
+                    i += 1
+                    packet.append(buffer[i] ^ 0x20)
+                else:
+                    packet.append(buffer[i])
+                if len(packet) == 10:
+                    if check_crc(packet):
+                        add_telemetry(packet)
+                    packet = []
 
 
 def get_sensor_data(data_id):
@@ -676,7 +777,8 @@ telemetry = {}
 telemetry['sensor_id'] = 0
 bt = {
     'name': '',
-    'address': ''
+    'address': '',
+    'type': ''
 }
 settings = {
     'bt': bt
@@ -782,11 +884,13 @@ config = {
 
 screen_manager = ScreenManager()
 screen_monitors = ScreenMonitors(name='screen_monitors')
+screen_settings = ScreenSettings(name='screen_settings')
 screen_edit_name = ScreenEditName(name='screen_edit_name')
 screen_edit_sensor = ScreenEditSensor(name='screen_edit_sensor')
 screen_monitor = ScreenMonitor(name='screen_monitor')
 screen_list = ScreenList(name='screen_list')
 screen_manager.add_widget(screen_monitors)
+screen_manager.add_widget(screen_settings)
 screen_manager.add_widget(screen_edit_name)
 screen_manager.add_widget(screen_edit_sensor)
 screen_manager.add_widget(screen_list)

@@ -84,19 +84,20 @@
                 ActionButton:
                     id: image_connection
                     icon: 'data/circle-red.png'
-                    on_release: root.list_bluetooth()
+                    on_release: root.connect()
                 ActionGroup:
                     text: 'Menu'
                     mode: 'spinner'
                     ActionButton:
                         id: button_connection
                         text: 'Connect'
-                        on_release: root.list_bluetooth()
+                        on_release: root.connect()
                     ActionButton:
                         text: 'Add monitor'
                         on_release: root.add_monitor()
-                    #ActionButton:
-                    #    text: 'Settings'
+                    ActionButton:
+                        text: 'Settings'
+                        on_release: root.show_screen_settings()
                     ActionButton:
                         text: 'About'
                         on_release: root.show_popup_about()
@@ -411,4 +412,38 @@
                 cols: 1
                 size_hint_y: None
                 height: self.minimum_height
+
+<ScreenSettings>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport BT'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Ok'
+                    on_release: root.update_settings()
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.show_screen_monitors()
+        GridLayout:
+            cols: 1
+            Label:
+                size_hint_y: None
+                height: self.font_size * 2
+                text_size: self.size
+                text: 'Device'
+            Button:
+                id: device
+                height: self.font_size * 2
+                text_size: self.size
+                valign: 'center'
+                size_hint_y: None
+                multiline: False
+                on_release: root.list_bluetooth()
 
