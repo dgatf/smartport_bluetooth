@@ -18,7 +18,13 @@ Prerequisites:
 
 Install python modules
 
-*python3 -m pip install kivy pybluez gattlib*
+Linux:
+
+*python3 -m pip install kivy pybluez plyer gattlib*
+
+OS X and Windows:
+
+*python -m pip install kivy pybluez plyer*
 
 Copy folder *src* and execute
 

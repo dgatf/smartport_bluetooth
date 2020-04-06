@@ -36,6 +36,7 @@ Builder.load_file('smartportbt_kv.kv')
 
 if platform == 'win' or platform == 'linux' or platform == 'macosx':
     import bluetooth
+if platform == 'linux'
     from gattlib import DiscoveryService, GATTRequester, GATTResponse
 if platform == 'android':
     from jnius import autoclass
@@ -59,7 +60,7 @@ class BluetoothExtendedError(Exception):
     pass
 
 
-if platform == 'win' or platform == 'linux' or platform == 'macosx':
+if platform == 'linux':
     class DeviceBle(GATTRequester):
 
         """def __init__(self, address, **kwargs):
@@ -108,14 +109,15 @@ class BluetoothExtended():
                         10, 'Unknown error: ' + error.args[1])
                 return
             # bt ble
-            service = DiscoveryService("hci0")
-            try:
-                devices_ble = service.discover(2)
-            except RuntimeError as error:
-                root = False
-            else:
-                for key in devices_ble:
-                    devices['ble'].append((key, devices_ble[key]))
+            if platform == 'linux':
+                service = DiscoveryService("hci0")
+                try:
+                    devices_ble = service.discover(2)
+                except RuntimeError as error:
+                    root = False
+                else:
+                    for key in devices_ble:
+                        devices['ble'].append((key, devices_ble[key]))
             return devices, root
 
     def connect(self, address, type):
@@ -135,7 +137,7 @@ class BluetoothExtended():
                     self.socket.settimeout(self.timeout)
                     self.type = 'classic'
                     self.isConnected = True
-            if type == 'ble':
+            if type == 'ble' and platform == 'linux':
                 self.type = 'ble'
                 self.device = DeviceBle(address)
                 self.device.init()
