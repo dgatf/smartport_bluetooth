@@ -36,7 +36,7 @@ Builder.load_file('smartportbt_kv.kv')
 
 if platform == 'win' or platform == 'linux' or platform == 'macosx':
     import bluetooth
-if platform == 'linux'
+if platform == 'linux':
     from gattlib import DiscoveryService, GATTRequester, GATTResponse
 if platform == 'android':
     from jnius import autoclass
@@ -134,14 +134,15 @@ class BluetoothExtended():
                         raise BluetoothExtendedError(
                             10, 'Unknown error: ' + error.args[1])
                 else:
-                    self.socket.settimeout(self.timeout)
                     self.type = 'classic'
                     self.isConnected = True
+                    return
             if type == 'ble' and platform == 'linux':
                 self.type = 'ble'
                 self.device = DeviceBle(address)
                 self.device.init()
                 self.isConnected = True
+                return
         if platform == 'android':
             devices = bluetooth.getDefaultAdapter().getBondedDevices().toArray()
             if not bluetooth.getDefaultAdapter().isEnabled():
@@ -331,8 +332,8 @@ class ScreenSettings(Screen):
                 Clock.schedule_once(partial(smartport_app.show_toast, 'Run as administrator to scan for ble devices'), 1)
             for key in devices:
                 for address, name in devices[key]:
-                    button = Factory.ButtonList(text=name)
-                    button.device_name = name or address
+                    button = Factory.ButtonList(text=name or address)
+                    button.device_name = name
                     button.device_address = address
                     button.device_type = key
                     button.bind(on_release=self.select_device)
@@ -716,7 +717,7 @@ def get_sensor_data(data_id):
                                 1: {'name': 'GPSLat', 'unit': '', 'mult': 0.01, 'shift': 16}},
         range(0x0820, 0x082f): {0: {'name': 'GPSAlt', 'unit': 'm', 'mult': 0.01, 'shift': 0}},
         range(0x0830, 0x083f): {0: {'name': 'GPSSpeed', 'unit': 'kts', 'mult': 0.001, 'shift': 0}},
-        range(0x0840, 0x084f): {0: {'name': 'GPSCours', 'unit': 'º', 'mult': 0.01, 'shift': 0}},
+        range(0x0840, 0x084f): {0: {'name': 'GPSCours', 'unit': '\xf8', 'mult': 0.01, 'shift': 0}},
         range(0x0850, 0x085f): {0: {'name': 'GPSTime', 'unit': 'g', 'mult': 0.01, 'shift': 0}},
         range(0x0900, 0x090f): {0: {'name': 'A3', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
         range(0x0910, 0x091f): {0: {'name': 'A4', 'unit': 'v', 'mult': 0.01, 'shift': 0}},
@@ -899,7 +900,7 @@ screen_manager.add_widget(screen_list)
 screen_manager.add_widget(screen_monitor)
 screen_manager.current = 'screen_monitors'
 
-store = JsonStore('smartport.json')
+store = JsonStore('smartportbt.json')
 for element in store.keys():
     config[element] = store[element]
     if 'type' in config[element]:
