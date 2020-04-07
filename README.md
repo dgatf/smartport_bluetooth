@@ -13,26 +13,34 @@ This is a Frsky Smartport client for devices with bluetooth written in Python 3
 
 Prerequisites:
 
-- Python 3 with Kivy and pybluez modules
+- Python 3
 - OpentTx 2.3.6
 
 Install python modules
 
-Linux:
+## Linux
 
 *python3 -m pip install kivy pybluez plyer gattlib*
 
-OS X and Windows:
+To scan for BLE devices sudo privilieges are needed. To run as normal user change python capabilities:
+
+*sudo setcap cap_net_raw+ep /usr/bin/$(readlink /usr/bin/python3)*
+
+## OS X and old windows
 
 *python -m pip install kivy pybluez plyer*
+
+## Windows 10
+
+*python -m pip install kivy PyBluez-win10 plyer*
+
+## Usage
 
 Copy folder *src* and execute
 
 *python3 main.py*
 
-To scan for BLE devices sudo privilieges are needed. To run as normal user change python capabilities:
 
-*sudo setcap cap_net_raw+ep /usr/bin/$(readlink /usr/bin/python3)*
 
 ## Android
 
