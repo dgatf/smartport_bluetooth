@@ -18,7 +18,7 @@ Prerequisites:
 
 Install python modules
 
-## Linux
+Linux:
 
 *python3 -m pip install kivy pybluez plyer gattlib*
 
@@ -26,20 +26,18 @@ To scan for BLE devices sudo privilieges are needed. To run as normal user chang
 
 *sudo setcap cap_net_raw+ep /usr/bin/$(readlink /usr/bin/python3)*
 
-## OS X and old windows
+OS X and old windows:
 
 *python -m pip install kivy pybluez plyer*
 
-## Windows 10
+Windows 10:
 
 *python -m pip install kivy PyBluez-win10 plyer*
 
-## Usage
 
 Copy folder *src* and execute
 
 *python3 main.py*
-
 
 
 ## Android
