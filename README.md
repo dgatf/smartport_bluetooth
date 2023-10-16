@@ -42,7 +42,7 @@ Copy folder *src* and execute
 
 ## Android
 
-Install *smartportbt_unsigned.apk* 
+Install [smartportbt_unsigned.apk](https://github.com/dgatf/smartport_bluetooth/releases/download/v1.0/smartportbt_unsigned.apk) 
 
 Pair the bluetooth device before launching the app
 
