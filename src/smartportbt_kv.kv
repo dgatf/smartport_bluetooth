@@ -1,0 +1,449 @@
+#:kivy 1.11.1
+        
+<PopupMonitors@Popup>:
+    height: self.ids.rename.font_size * 10
+    width: self.ids.rename.font_size * 10
+    size_hint: None, None
+    title: ''
+    separator_height: 0
+    GridLayout:
+        cols: 1
+        Button:
+            id: rename
+            text: 'Rename'
+        Button:
+            id: delete
+            text: 'Delete'
+
+<PopupAbout@Popup>:
+    size_hint: 0.5, 0.5
+    title: 'About'
+    GridLayout:
+        cols: 1
+        Label:
+            halign: 'center'
+            text: 'Smartport BT\nv0.1\nDaniel GeA'
+                   
+<Toast@Popup>:
+    title: 'Error'
+    size_hint: 0.5, None
+    height: self.ids.label.font_size * 10
+    GridLayout:
+        cols: 1
+        Label:
+            id: label
+
+<ButtonList@LongpressButton>:
+    size_hint_y: None
+    height: self.font_size * 2
+    long_press_time: 0.3
+
+<ButtonSensor>:
+    markup: True
+    halign: 'center'
+    sensor_name: ''
+    sensor_id: 0
+    sensor_data_id: 0
+    sensor_value: 0
+    sensor_index: 0
+    sensor_unit: ''
+    alarm: None
+    text: (self.sensor_name + '\n' + str(self.sensor_value) + ' ' + self.sensor_unit) if self.sensor_data_id else '-'
+    font_size: self.height / 3 if 2 * self.height < self.width else self.width / 6
+    long_press_time: 0.3
+
+<MyScreenManager>:
+    ScreenMonitors:
+        id: screen_monitors
+        name: 'screen_monitors'
+    ScreenMonitor:
+        id: screen_monitor
+        name: 'screen_monitor'
+    ScreenEditName:
+        id: screen_edit_name
+        name: 'screen_edit_name'
+    ScreenEditSensor:
+        id: screen_edit_sensor
+        name: 'screen_edit_sensor'
+    ScreenList:
+        id: screen_list
+        name: 'screen_list'
+
+<ScreenMonitors>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: 'data/remote.png'
+                    title: 'Smartport BT'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    id: image_connection
+                    icon: 'data/circle-red.png'
+                    on_release: root.connect()
+                ActionGroup:
+                    text: 'Menu'
+                    mode: 'spinner'
+                    ActionButton:
+                        id: button_connection
+                        text: 'Connect'
+                        on_release: root.connect()
+                    ActionButton:
+                        text: 'Add monitor'
+                        on_release: root.add_monitor()
+                    ActionButton:
+                        text: 'Settings'
+                        on_release: root.show_screen_settings()
+                    ActionButton:
+                        text: 'About'
+                        on_release: root.show_popup_about()
+                    ActionButton:
+                        text: 'Exit'
+                        on_release: app.get_running_app().stop()
+        ScrollView:
+            GridLayout:
+                id: list_config
+                cols: 1
+                height: self.minimum_height
+                
+<ScreenMonitor>:
+    uuid: ''
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    id: title
+                    app_icon: ''
+                    title: 'Smartport BT'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.show_screen_monitors()
+        GridLayout:
+            cols: 2
+            ButtonSensor:
+                id: sensor1
+                index: 'sensor1'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor2
+                index: 'sensor2'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor3
+                index: 'sensor3'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor4
+                index: 'sensor4'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor5
+                index: 'sensor5'
+                on_long_press: root.show_screen_edit_sensor(self)
+            ButtonSensor:
+                id: sensor6
+                index: 'sensor6'
+                on_long_press: root.show_screen_edit_sensor(self)
+ 
+<ScreenEditName>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport BT'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Ok'
+                    on_release: root.update_name()
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.cancel_name()
+        GridLayout:
+            cols: 1
+            Label:
+                size_hint_y: None
+                height: self.font_size * 2
+                text_size: self.size
+                text: 'Name'
+            TextInput:
+                id: text_name
+                height: self.font_size * 2
+                size_hint_y: None
+                multiline: False
+                on_text_validate: root.update_name()
+
+<ScreenEditSensor>:
+    sensor_id: 0
+    sensor_data_id: 0
+    sensor_index: 0
+    sensor_name: ''
+    sensor_unit: ''
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport BT'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Ok'
+                    on_release: root.update_sensor()
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.show_screen_monitor()
+        ScrollView:
+            GridLayout:
+                id: list
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+                Label:
+                    text: 'Sensor name'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                GridLayout:
+                    cols: 2
+                    size_hint_y: None
+                    height: root.ids.alarm_text.font_size * 2
+                    TextInput:
+                        id: name
+                        text: str(root.sensor_name)
+                        text_size: self.size
+                        multiline: False
+                        size_hint_x: 0.9
+                        on_text: root.sensor_name = self.text
+                    Button:
+                        valign: 'center'
+                        text: '<'
+                        on_release: root.show_sensor_list()
+                        size_hint_x: 0.1
+                Label:
+                    text: 'Sensor Id'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                TextInput:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: hex(int(root.sensor_id))
+                    multiline: False
+                    size_hint_y: None
+                    # disabled: True
+                Label:
+                    text: 'Data Id'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                TextInput:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: hex(int(root.sensor_data_id))
+                    multiline: False
+                    size_hint_y: None
+                    # disabled: True
+                Label:
+                    text: 'Multiplier'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                FloatInput:
+                    id: multiplier
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: ''
+                    size_hint_y: None
+                    multiline: False
+                Label:
+                    text: 'Value'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                    opacity: 1 if root.sensor_index == 2 else 0
+                    disabled: False if root.sensor_index == 2 else True
+                    height: root.ids.alarm_text.font_size * 2 if root.sensor_index == 2 else 0
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: root.ids.alarm_text.font_size * 2 if root.sensor_index == 2 else 0
+                    opacity: 1 if root.sensor_index == 2 else 0
+                    disabled: False if root.sensor_index == 2 else True
+                    ToggleButton:
+                        id: sum
+                        group: 'value'
+                        text: 'Sum'
+                    ToggleButton:
+                        id: min
+                        group: 'value'
+                        text: 'Min'
+                    ToggleButton:
+                        id: max
+                        group: 'value'
+                        text: 'Max'
+                    ToggleButton:
+                        id: delta
+                        group: 'value'
+                        text: 'Delta'
+                Label:
+                    text: ''
+                    height: self.font_size * 2
+                    size_hint_y: None
+                BoxLayout:
+                    orientation: 'horizontal'
+                    height: root.ids.alarm_text.font_size * 2
+                    size_hint_y: None
+                    Label:
+                        text: 'Alarm'
+                        valign: 'center'
+                        text_size: self.size
+                        size_hint_x: None
+                    CheckBox:
+                        id: alarm_check
+                        pos_hint: {'left': 0}
+                        width: '1cm'
+                        size_hint_x: None
+                Label:
+                    text: 'Condition'
+                    height: self.font_size * 2
+                    text_size: self.size
+                    size_hint_y: None
+                BoxLayout:
+                    orientation: 'horizontal'
+                    height: root.ids.alarm_text.font_size * 2
+                    size_hint_y: None
+                    ToggleButton:
+                        id: lower
+                        condition: 'lower'
+                        group: 'condition'
+                        text: '<'
+                    ToggleButton:
+                        id: equal
+                        condition: 'equal'
+                        group: 'condition'
+                        text: '='
+                    ToggleButton:
+                        id: higher
+                        condition: 'higher'
+                        group: 'condition'
+                        text: '>'
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Repeat every (sec)'
+                    size_hint_y: None
+                FloatInput:
+                    id: alarm_interval
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: ''
+                    size_hint_y: None
+                    multiline: False
+                    disabled: not root.ids.alarm_check.active
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Value'
+                    size_hint_y: None
+                FloatInput:
+                    id: alarm_value
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: ''
+                    size_hint_y: None
+                    multiline: False
+                    disabled: not root.ids.alarm_check.active
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Text to speech'
+                    size_hint_y: None
+                TextInput:
+                    id: alarm_text
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: 'Warning %s is %v %u'
+                    size_hint_y: None
+                    multiline: False
+                    disabled: not root.ids.alarm_check.active
+                Label:
+                    height: self.font_size * 2
+                    text_size: self.size
+                    text: '%s - sensor, %v - value, %u - unit'
+                    size_hint_y: None
+
+            
+<ScreenList>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    id: actionbar
+                    app_icon: ''
+                    title: 'Smartport BT'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.ids.list.clear_widgets(); root.previous_screen()
+        ScrollView:
+            GridLayout:
+                id: list
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
+
+<ScreenSettings>:
+    GridLayout:
+        cols: 1
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                ActionPrevious:
+                    app_icon: ''
+                    title: 'Smartport BT'
+                    with_previous: False
+                ActionOverflow:
+                ActionButton:
+                    text: 'Ok'
+                    on_release: root.update_settings()
+                ActionButton:
+                    text: 'Back'
+                    on_release: root.show_screen_monitors()
+        GridLayout:
+            cols: 1
+            Label:
+                size_hint_y: None
+                height: self.font_size * 2
+                text_size: self.size
+                text: 'Device'
+            Button:
+                id: device
+                height: self.font_size * 2
+                text_size: self.size
+                valign: 'center'
+                size_hint_y: None
+                multiline: False
+                on_release: root.list_bluetooth()
+
