@@ -16,28 +16,33 @@ Prerequisites:
 - Python 3
 - OpentTx 2.3.6
 
-Install python modules
+Install python modules (1)
 
 Linux:
 
-*python3 -m pip install kivy pybluez plyer gattlib*
+<code>python3 -m pip install kivy pybluez plyer gattlib</code>
 
 To scan for BLE devices sudo privilieges are needed. To run as normal user change python capabilities:
 
-*sudo setcap cap_net_raw+ep /usr/bin/$(readlink /usr/bin/python3)*
+<code>sudo setcap cap_net_raw+ep /usr/bin/$(readlink /usr/bin/python3)</code>
 
 OS X and old windows:
 
-*python -m pip install kivy pybluez plyer*
+<code>python -m pip install kivy pybluez plyer</code>
 
 Windows 10:
 
-*python -m pip install kivy PyBluez-win10 plyer*
+<code>python -m pip install kivy PyBluez-win10 plyer</code>  
+\
+**Launch** the app from *src* folder:
 
+<code>python3 main.py</code>  
+\
+(1) If *pybluez* does not install correctly:
 
-Copy folder *src* and execute
-
-*python3 main.py*
+<code>sudo apt-get install libbluetooth-dev  
+pip install git+https://github.com/pybluez/pybluez.git#egg=pybluez  
+python3 -m pip install kivy plyer gattlib</code>  
 
 
 ## Android
